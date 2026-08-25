@@ -379,16 +379,7 @@ export async function sendBanSignalement(client, options) {
       proofThreadId: thread?.id || null,
     });
 
-    if (thread) {
-      await thread
-        .send({
-          content:
-            '📎 Déposez ici les **preuves** du signalement (captures, vidéos, texte, fichiers). Elles sont enregistrées automatiquement en base.',
-        })
-        .catch(() => {});
-      embed.addFields({ name: 'Preuves', value: `<#${thread.id}>`, inline: false });
-      await message.edit({ embeds: [embed] }).catch(() => {});
-    } else {
+    if (!thread) {
       console.warn(`[L'éphémère] Signalement posté sans fil de preuves (user ${options.userId}).`);
     }
 
@@ -502,17 +493,9 @@ export async function handleBan(interaction) {
     };
     const result = await sendBanSignalement(interaction.client, signalement);
     const embed = buildBanSignalementEmbed(interaction.client, signalement);
-    if (result?.threadId) {
-      embed.addFields({ name: 'Preuves', value: `<#${result.threadId}>`, inline: false });
-    }
-    let content;
-    if (!result?.posted) {
-      content = '⚠️ Ban effectué, mais le salon de signalements est inaccessible.';
-    } else if (result.threadId) {
-      content = `Signalement publié dans <#${config.banLogChannelId}> — preuves : <#${result.threadId}>.`;
-    } else {
-      content = `Signalement publié dans <#${config.banLogChannelId}> (fil de preuves non créé).`;
-    }
+    const content = result?.posted
+      ? `Signalement publié dans <#${config.banLogChannelId}>.`
+      : '⚠️ Ban effectué, mais le salon de signalements est inaccessible.';
 
     return interaction.editReply({ content, embeds: [embed] });
   } catch (err) {
