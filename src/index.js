@@ -11,6 +11,9 @@ import {
   getInstanceLockInfo,
   cleanupPresentationDrafts,
   removeBannedUser,
+  addBannedUser,
+  getBannedUser,
+  updateBannedUser,
 } from './database.js';
 import { commands } from './commands/index.js';
 import {
@@ -26,6 +29,7 @@ import {
   handleUnwarnSelect,
   isPendingSlashBan,
   sendBanAppealDmToBannedUser,
+  sendBanSignalement,
 } from './commands/moderation.js';
 import {
   handlePresentation,
@@ -48,6 +52,7 @@ import {
   handleTicketButton,
 } from './commands/tickets.js';
 import { handlePresentationChannelBulkDelete, handlePresentationChannelDelete } from './presentationReset.js';
+import { persistBanProofMessage, deleteBanProofsForDeletedMessage } from './banProofs.js';
 
 validateConfig();
 
@@ -109,6 +114,7 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.GuildBans,
     ...(config.useGuildMembersIntent ? [GatewayIntentBits.GuildMembers] : []),
+    ...(config.useMessageContentIntent ? [GatewayIntentBits.MessageContent] : []),
   ],
   makeCache: Options.cacheWithLimits({
     ...Options.DefaultMakeCacheSettings,
@@ -240,6 +246,11 @@ client.once(Events.ClientReady, async (c) => {
   } else {
     console.log("[L'éphémère] Intent Guild Members désactivé. Active-le dans le Developer Portal puis GUILD_MEMBERS_INTENT=true.");
   }
+  if (config.useMessageContentIntent) {
+    console.log("[L'éphémère] Intent Message Content activé → texte des preuves dans les fils de signalement.");
+  } else {
+    console.log("[L'éphémère] Intent Message Content désactivé. Les preuves images/fichiers sont enregistrées, pas le texte.");
+  }
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
@@ -365,6 +376,38 @@ client.on(Events.ChannelDelete, async (channel) => {
   }
 });
 
+client.on(Events.MessageCreate, async (message) => {
+  try {
+    await persistBanProofMessage(message, { replace: false });
+  } catch (err) {
+    console.error("[L'éphémère] Erreur enregistrement preuve:", err?.message || err);
+  }
+});
+
+client.on(Events.MessageUpdate, async (_oldMessage, newMessage) => {
+  let msg = newMessage;
+  if (msg.partial) {
+    try {
+      msg = await msg.fetch();
+    } catch {
+      return;
+    }
+  }
+  try {
+    await persistBanProofMessage(msg, { replace: true });
+  } catch (err) {
+    console.error("[L'éphémère] Erreur maj preuve:", err?.message || err);
+  }
+});
+
+client.on(Events.MessageDelete, async (message) => {
+  try {
+    await deleteBanProofsForDeletedMessage(message);
+  } catch (err) {
+    console.error("[L'éphémère] Erreur suppression preuve:", err?.message || err);
+  }
+});
+
 client.on(Events.GuildBanAdd, async (ban) => {
   try {
     const userId = ban.user?.id;
@@ -376,7 +419,23 @@ client.on(Events.GuildBanAdd, async (ban) => {
     const reasonFromBan = fetchedBan && 'reason' in fetchedBan ? fetchedBan.reason : null;
     const reason = (entry?.reason ?? reasonFromBan) || 'Non précisée';
     const bannedAt = entry ? new Date(entry.createdTimestamp) : new Date();
+    const moderatorId = entry?.executorId || client.user.id;
+    const guildId = ban.guild.id;
+    const existing = await getBannedUser(userId, guildId);
+    if (existing) {
+      await updateBannedUser(userId, guildId, reason, moderatorId);
+    } else {
+      await addBannedUser(userId, reason, moderatorId, guildId);
+    }
     await sendBanAppealDmToBannedUser(client, ban.guild, userId, reason, bannedAt);
+    await sendBanSignalement(client, {
+      userId,
+      guildId,
+      reason,
+      moderatorId,
+      bannedAt,
+      avatarURL: ban.user?.displayAvatarURL?.({ size: 128 }) || null,
+    });
   } catch (err) {
     console.error("[L'éphémère] Erreur GuildBanAdd (MP banni):", err?.message || err);
   }

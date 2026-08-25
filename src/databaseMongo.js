@@ -19,6 +19,9 @@ export async function initDatabase() {
   await client.connect();
   db = client.db(DB_NAME);
   await db.collection('banned_users').createIndex({ discord_user_id: 1, guild_id: 1 }, { unique: true });
+  await db.collection('banned_users').createIndex({ proof_thread_id: 1 }, { sparse: true });
+  await db.collection('ban_proofs').createIndex({ discord_user_id: 1, ban_guild_id: 1 });
+  await db.collection('ban_proofs').createIndex({ discord_message_id: 1 });
   await db.collection('avertissements').createIndex({ discord_user_id: 1, guild_id: 1 });
   await db.collection('presentation_messages').createIndex({ guild_id: 1, discord_user_id: 1, variant: 1 }, { unique: true });
   await db.collection('presentation_drafts').createIndex({ guild_id: 1, discord_user_id: 1, variant: 1 }, { unique: true });
@@ -77,6 +80,46 @@ export async function removeBannedUser(discordUserId, guildId) {
     return { changes: r.deletedCount };
   }
   const r = await db.collection('banned_users').deleteMany({ discord_user_id: uid });
+  return { changes: r.deletedCount };
+}
+
+export async function updateBanProofMessage(discordUserId, guildId, proofGuildId, proofChannelId, proofMessageId, proofThreadId = null) {
+  const uid = String(discordUserId);
+  const gid = String(guildId || '');
+  const r = await db.collection('banned_users').updateOne(
+    { discord_user_id: uid, guild_id: gid },
+    {
+      $set: {
+        proof_guild_id: proofGuildId || null,
+        proof_channel_id: proofChannelId || null,
+        proof_message_id: proofMessageId || null,
+        proof_thread_id: proofThreadId || null,
+      },
+    }
+  );
+  return r.matchedCount > 0;
+}
+
+export async function getBannedUserByProofThreadId(threadId) {
+  if (!threadId) return null;
+  return toPlain(await db.collection('banned_users').findOne({ proof_thread_id: String(threadId) }));
+}
+
+export async function addBanProof(discordUserId, banGuildId, type, content, createdByDiscordId = null, discordMessageId = null) {
+  await db.collection('ban_proofs').insertOne({
+    discord_user_id: String(discordUserId),
+    ban_guild_id: String(banGuildId || ''),
+    type: type || 'text',
+    content: content || '',
+    created_at: new Date().toISOString(),
+    created_by_discord_id: createdByDiscordId || null,
+    discord_message_id: discordMessageId || null,
+  });
+}
+
+export async function deleteBanProofsByMessageId(discordMessageId) {
+  if (!discordMessageId) return { changes: 0 };
+  const r = await db.collection('ban_proofs').deleteMany({ discord_message_id: String(discordMessageId) });
   return { changes: r.deletedCount };
 }
 

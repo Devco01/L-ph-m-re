@@ -32,6 +32,7 @@ dotenv.config();
 const ADMIN_ROLE_IDS_RAW = process.env.ADMIN_ROLE_IDS || '';
 const RATE_LIMIT = Math.min(100, Math.max(1, parseInt(process.env.RATE_LIMIT_PER_MINUTE, 10) || 10));
 const useGuildMembersIntent = /^(1|true|yes|on)$/i.test((process.env.GUILD_MEMBERS_INTENT || 'true').trim());
+const useMessageContentIntent = /^(1|true|yes|on)$/i.test((process.env.MESSAGE_CONTENT_INTENT || 'false').trim());
 
 function parseHexColor(raw, fallback) {
   const hex = String(raw || '')
@@ -73,6 +74,7 @@ export const config = {
   founderUserId: (process.env.FOUNDER_USER_ID || '').trim() || null,
   rateLimitPerMinute: RATE_LIMIT,
   useGuildMembersIntent,
+  useMessageContentIntent,
   /** Embeds de sanctions (ban, warn, unban, unwarn). */
   embedColorSanction: parseHexColor(process.env.EMBED_COLOR_SANCTION || process.env.DISCORD_EMBED_COLOR_SANCTION, 0xef233c),
   /** Embeds hors sanctions (présentation, tickets, analyse). */
@@ -82,6 +84,8 @@ export const config = {
   presentationResetMinBulk: parsePresentationResetMinBulk(),
   ticketStaffRoleIds: parseCsvList(process.env.TICKET_STAFF_ROLE_IDS || ''),
   ticketChannelId: (process.env.TICKET_CHANNEL_ID || '').trim() || null,
+  /** Salon où poster l’embed de signalement après un ban. */
+  banLogChannelId: (process.env.BAN_LOG_CHANNEL_ID || '1541771698888646696').trim() || null,
 };
 
 export function validateConfig() {

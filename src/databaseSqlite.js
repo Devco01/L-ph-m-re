@@ -94,7 +94,26 @@ function initDb() {
       acquired_at TEXT NOT NULL DEFAULT (datetime('now')),
       expires_at INTEGER NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS ban_proofs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      discord_user_id TEXT NOT NULL,
+      ban_guild_id TEXT NOT NULL,
+      type TEXT NOT NULL,
+      content TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      created_by_discord_id TEXT,
+      discord_message_id TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_ban_proofs_user_guild ON ban_proofs(discord_user_id, ban_guild_id);
   `);
+
+  const bannedCols = db.prepare('PRAGMA table_info(banned_users)').all();
+  for (const col of ['proof_guild_id', 'proof_channel_id', 'proof_message_id', 'proof_thread_id']) {
+    if (!bannedCols.some((c) => c.name === col)) {
+      db.exec(`ALTER TABLE banned_users ADD COLUMN ${col} TEXT`);
+    }
+  }
 
   return db;
 }
@@ -131,6 +150,46 @@ export function removeBannedUser(discordUserId, guildId) {
     return db.prepare('DELETE FROM banned_users WHERE discord_user_id = ? AND guild_id = ?').run(discordUserId, guildId);
   }
   return db.prepare('DELETE FROM banned_users WHERE discord_user_id = ?').run(discordUserId);
+}
+
+export function updateBanProofMessage(discordUserId, guildId, proofGuildId, proofChannelId, proofMessageId, proofThreadId = null) {
+  return db
+    .prepare(
+      'UPDATE banned_users SET proof_guild_id = ?, proof_channel_id = ?, proof_message_id = ?, proof_thread_id = ? WHERE discord_user_id = ? AND guild_id = ?'
+    )
+    .run(
+      proofGuildId || null,
+      proofChannelId || null,
+      proofMessageId || null,
+      proofThreadId || null,
+      String(discordUserId),
+      String(guildId || '')
+    );
+}
+
+export function getBannedUserByProofThreadId(threadId) {
+  if (!threadId) return null;
+  return db.prepare('SELECT * FROM banned_users WHERE proof_thread_id = ?').get(String(threadId));
+}
+
+export function addBanProof(discordUserId, banGuildId, type, content, createdByDiscordId = null, discordMessageId = null) {
+  return db
+    .prepare(
+      'INSERT INTO ban_proofs (discord_user_id, ban_guild_id, type, content, created_by_discord_id, discord_message_id) VALUES (?, ?, ?, ?, ?, ?)'
+    )
+    .run(
+      String(discordUserId),
+      String(banGuildId || ''),
+      type || 'text',
+      content || '',
+      createdByDiscordId || null,
+      discordMessageId || null
+    );
+}
+
+export function deleteBanProofsByMessageId(discordMessageId) {
+  if (!discordMessageId) return { changes: 0 };
+  return db.prepare('DELETE FROM ban_proofs WHERE discord_message_id = ?').run(String(discordMessageId));
 }
 
 export function addAvertissement(discordUserId, reason, moderatorDiscordId, guildId) {

@@ -26,6 +26,7 @@ import { checkRateLimit } from '../rateLimit.js';
 import { resolveReasonToFullTag } from '../sanctionsTags.js';
 import { COLOR_SANCTION, COLOR_OTHER, getBotAuthor, getBotFooter } from '../embeds.js';
 import { hasAdminRole } from '../permissions.js';
+import { createBanProofThread, persistProofThreadLink } from '../banProofs.js';
 
 const ANALYSE_CACHE_TTL_MS = 10 * 60 * 1000;
 const analyseCache = new Map();
@@ -328,6 +329,72 @@ export async function sendBanAppealDmToBannedUser(client, guild, userId, reason,
   }
 }
 
+function buildBanSignalementEmbed(client, { userId, reason, moderatorId, bannedAt, avatarURL, updated = false }) {
+  const embed = new EmbedBuilder()
+    .setColor(COLOR_SANCTION)
+    .setAuthor(getBotAuthor(client))
+    .setTitle('🚨 Signalement')
+    .setDescription(
+      updated
+        ? `Fiche mise à jour et banni par <@${moderatorId}>`
+        : `Banni par <@${moderatorId}>`
+    )
+    .addFields(
+      { name: 'Utilisateur banni', value: `<@${userId}> (ID: ${userId})`, inline: true },
+      { name: 'Motif du ban', value: reason || 'Non précisée', inline: false },
+      { name: 'Date et heure', value: formatBanDate(bannedAt || new Date().toISOString()), inline: false }
+    )
+    .setFooter(getBotFooter(client, { date: bannedAt || new Date() }));
+  if (avatarURL) embed.setThumbnail(avatarURL);
+  return embed;
+}
+
+export async function sendBanSignalement(client, options) {
+  const channelId = config.banLogChannelId;
+  if (!channelId) return { posted: false };
+  try {
+    const channel = await client.channels.fetch(channelId).catch(() => null);
+    if (!channel?.isTextBased?.()) {
+      console.warn(`[L'éphémère] Salon signalements introuvable: ${channelId}`);
+      return { posted: false };
+    }
+    const embed = buildBanSignalementEmbed(client, options);
+    const message = await channel.send({
+      content: '🚨 Un nouveau signalement vient d’être enregistré.',
+      embeds: [embed],
+    });
+
+    const thread = await createBanProofThread(message, options.userId);
+    const guildId = options.guildId || message.guild?.id;
+    await persistProofThreadLink({
+      userId: options.userId,
+      guildId,
+      proofGuildId: message.guild?.id || guildId,
+      proofChannelId: message.channel?.id || channel.id,
+      proofMessageId: message.id,
+      proofThreadId: thread?.id || null,
+    });
+
+    if (thread) {
+      await thread
+        .send({
+          content:
+            '📎 Déposez ici les **preuves** du signalement (captures, vidéos, texte, fichiers). Elles sont enregistrées automatiquement en base.',
+        })
+        .catch(() => {});
+      embed.addFields({ name: 'Preuves', value: `<#${thread.id}>`, inline: false });
+      await message.edit({ embeds: [embed] }).catch(() => {});
+    } else {
+      console.warn(`[L'éphémère] Signalement posté sans fil de preuves (user ${options.userId}).`);
+    }
+
+    return { posted: true, threadId: thread?.id || null, messageId: message.id };
+  } catch (err) {
+    console.warn(`[L'éphémère] Envoi signalement ban échoué:`, err?.message || err);
+    return { posted: false };
+  }
+}
+
 export async function handleBan(interaction) {
   const formatBanApiError = (err) => {
     const code = err?.code ?? err?.rawError?.code;
@@ -420,23 +487,30 @@ export async function handleBan(interaction) {
     const inserted = await getBannedUser(userId, guild.id);
     await sendBanAppealDmToBannedUser(interaction.client, guild, userId, reason, inserted?.banned_at);
 
-    const embed = new EmbedBuilder()
-      .setColor(COLOR_SANCTION)
-      .setAuthor(getBotAuthor(interaction.client))
-      .setDescription(
-        existing || existingGuildBan
-          ? `Fiche mise à jour et banni par <@${interaction.user.id}>`
-          : `Banni par <@${interaction.user.id}>`
-      )
-      .addFields(
-        { name: 'Utilisateur banni', value: `<@${userId}> (ID: ${userId})`, inline: true },
-        { name: 'Motif du ban', value: reason || 'Non précisée', inline: false },
-        { name: 'Date et heure', value: formatBanDate(inserted?.banned_at || new Date().toISOString()), inline: false }
-      )
-      .setFooter(getBotFooter(interaction.client, { date: inserted?.banned_at || new Date() }));
-    if (bannedAvatarURL) embed.setThumbnail(bannedAvatarURL);
+    const signalement = {
+      userId,
+      guildId: guild.id,
+      reason,
+      moderatorId: interaction.user.id,
+      bannedAt: inserted?.banned_at || new Date(),
+      avatarURL: bannedAvatarURL,
+      updated: Boolean(existing || existingGuildBan),
+    };
+    const result = await sendBanSignalement(interaction.client, signalement);
+    const embed = buildBanSignalementEmbed(interaction.client, signalement);
+    if (result?.threadId) {
+      embed.addFields({ name: 'Preuves', value: `<#${result.threadId}>`, inline: false });
+    }
+    let content;
+    if (!result?.posted) {
+      content = '⚠️ Ban effectué, mais le salon de signalements est inaccessible.';
+    } else if (result.threadId) {
+      content = `Signalement publié dans <#${config.banLogChannelId}> — preuves : <#${result.threadId}>.`;
+    } else {
+      content = `Signalement publié dans <#${config.banLogChannelId}> (fil de preuves non créé).`;
+    }
 
-    return interaction.editReply({ embeds: [embed] });
+    return interaction.editReply({ content, embeds: [embed] });
   } catch (err) {
     console.error("[L'éphémère] Erreur handleBan:", err);
     return replyBanError(`❌ ${formatBanApiError(err)}`);

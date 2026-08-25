@@ -47,6 +47,10 @@ export const addBannedUser = wrap('addBannedUser');
 export const getBannedUser = wrap('getBannedUser');
 export const removeBannedUser = wrap('removeBannedUser');
 export const updateBannedUser = wrap('updateBannedUser');
+export const updateBanProofMessage = wrap('updateBanProofMessage');
+export const getBannedUserByProofThreadId = wrap('getBannedUserByProofThreadId');
+export const addBanProof = wrap('addBanProof');
+export const deleteBanProofsByMessageId = wrap('deleteBanProofsByMessageId');
 
 export const addAvertissement = wrap('addAvertissement');
 export const getAvertissementCount = wrap('getAvertissementCount');

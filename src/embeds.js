@@ -1,7 +1,7 @@
 import { config } from './config.js';
 import { formatFooterDateTime } from './validation.js';
 
-const FOOTER_BRAND = '꒰・Chill Zone・꒱ 🧋';
+const FOOTER_BRAND = 'Chill Zoneˢᶠᵂ | FR';
 
 export const COLOR_SANCTION = config.embedColorSanction;
 export const COLOR_OTHER = config.embedColorOther;

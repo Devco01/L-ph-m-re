@@ -128,7 +128,7 @@ function buildPanelEmbed(client) {
         '📌 **À savoir :**',
         '• Sois clair et précis dès ton premier message.',
         '• Un seul ticket ouvert à la fois.',
-        '• Un ticket resté sans réponse pendant plus de 24 heures pourra faire l’objet d’un warn.',
+        '• Un ticket resté sans réponse pendant plus de 24 heures fera l’objet d’un warn.',
         '• La certification s’effectue uniquement par vérification en caméra + CNI.',
         '',
         '🔒 **Confidentialité :**',
