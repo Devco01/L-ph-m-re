@@ -280,10 +280,10 @@ export async function claimTicket(threadId, claimedBy) {
   return { changes: r.modifiedCount };
 }
 
-export async function closeTicket(threadId) {
+export async function closeTicket(threadId, closeReason = null) {
   const r = await db.collection('tickets').updateOne(
     { thread_id: String(threadId) },
-    { $set: { status: 'closed', closed_at: new Date().toISOString() } }
+    { $set: { status: 'closed', closed_at: new Date().toISOString(), close_reason: closeReason || null } }
   );
   return { changes: r.modifiedCount };
 }

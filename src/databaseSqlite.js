@@ -115,6 +115,11 @@ function initDb() {
     }
   }
 
+  const ticketCols = db.prepare('PRAGMA table_info(tickets)').all();
+  if (!ticketCols.some((c) => c.name === 'close_reason')) {
+    db.exec('ALTER TABLE tickets ADD COLUMN close_reason TEXT');
+  }
+
   return db;
 }
 
@@ -310,8 +315,10 @@ export function claimTicket(threadId, claimedBy) {
   return db.prepare(`UPDATE tickets SET claimed_by = ? WHERE thread_id = ? AND status = 'open'`).run(String(claimedBy), String(threadId));
 }
 
-export function closeTicket(threadId) {
-  return db.prepare(`UPDATE tickets SET status = 'closed', closed_at = datetime('now') WHERE thread_id = ?`).run(String(threadId));
+export function closeTicket(threadId, closeReason = null) {
+  return db
+    .prepare(`UPDATE tickets SET status = 'closed', closed_at = datetime('now'), close_reason = ? WHERE thread_id = ?`)
+    .run(closeReason || null, String(threadId));
 }
 
 export function setTicketPanel(guildId, channelId, messageId) {

@@ -24,7 +24,7 @@ import {
   getTicketPanel,
 } from '../database.js';
 import { COLOR_OTHER, getBotAuthor, getBotFooter } from '../embeds.js';
-import { hasAdminRole, isStaffMember } from '../permissions.js';
+import { hasAdminRole, isStaffMember, canCloseTicket } from '../permissions.js';
 import { sanitizeReason, formatBanDate } from '../validation.js';
 
 /**
@@ -79,13 +79,14 @@ async function fetchThreadMessagesChronological(thread) {
   return collected;
 }
 
-function formatTranscriptText({ ticket, meta, messages, closedById }) {
+function formatTranscriptText({ ticket, meta, messages, closedById, closeReason }) {
   const header = [
     `Ticket ${meta.label}`,
     `Sujet : ${ticket.subject || '—'}`,
     `Auteur : ${ticket.user_id}`,
     ticket.claimed_by ? `Pris en charge par : ${ticket.claimed_by}` : null,
     `Fermé par : ${closedById}`,
+    closeReason ? `Phrase de fermeture : ${closeReason}` : null,
     `Ouvert le : ${formatBanDate(ticket.created_at)}`,
     `Messages : ${messages.length}`,
     '—'.repeat(40),
@@ -111,7 +112,7 @@ function formatTranscriptText({ ticket, meta, messages, closedById }) {
   return `${header}${body}\n`;
 }
 
-async function sendTicketTranscript(client, { thread, ticket, closedById }) {
+async function sendTicketTranscript(client, { thread, ticket, closedById, closeReason }) {
   const channelId = config.ticketTranscriptChannelId;
   if (!channelId) return false;
   const dest = await client.channels.fetch(channelId).catch(() => null);
@@ -122,7 +123,7 @@ async function sendTicketTranscript(client, { thread, ticket, closedById }) {
 
   const meta = getTicketType(ticket.type);
   const messages = await fetchThreadMessagesChronological(thread);
-  const text = formatTranscriptText({ ticket, meta, messages, closedById });
+  const text = formatTranscriptText({ ticket, meta, messages, closedById, closeReason });
   const file = new AttachmentBuilder(Buffer.from(text, 'utf8'), {
     name: `ticket-${meta.id}-${ticket.user_id}.txt`,
   });
@@ -140,6 +141,9 @@ async function sendTicketTranscript(client, { thread, ticket, closedById }) {
       { name: 'Fil', value: `<#${thread.id}>`, inline: true }
     )
     .setFooter(getBotFooter(client, { extra: 'Transcript', date: new Date() }));
+  if (closeReason) {
+    embed.addFields({ name: 'Phrase de fermeture', value: closeReason.slice(0, 1024), inline: false });
+  }
 
   await dest.send({ embeds: [embed], files: [file] });
   return true;
@@ -175,7 +179,7 @@ function ticketActionRow({ claimed = false, closed = false } = {}) {
   );
 }
 
-function buildTicketEmbed({ client, userId, type, subject, claimedBy = null, closed = false }) {
+function buildTicketEmbed({ client, userId, type, subject, claimedBy = null, closed = false, closeReason = null }) {
   const meta = getTicketType(type);
   const desc = closed
     ? `Ce ticket est **fermé**. Seuls les modérateurs peuvent le rouvrir.`
@@ -189,6 +193,9 @@ function buildTicketEmbed({ client, userId, type, subject, claimedBy = null, clo
     .setFooter(getBotFooter(client, { extra: closed ? 'Ticket fermé' : claimedBy ? `Pris en charge` : undefined, date: new Date() }));
   if (claimedBy) {
     embed.addFields({ name: 'Pris en charge par', value: `<@${claimedBy}>`, inline: true });
+  }
+  if (closed && closeReason) {
+    embed.addFields({ name: 'Phrase de fermeture', value: closeReason.slice(0, 1024), inline: false });
   }
   return embed;
 }
@@ -249,6 +256,10 @@ export function isTicketSelect(customId) {
 
 export function isTicketModal(customId) {
   return typeof customId === 'string' && customId.startsWith('ticket_modal_');
+}
+
+export function isTicketCloseModal(customId) {
+  return customId === 'ticket_close_modal';
 }
 
 export function isTicketButton(customId) {
@@ -445,7 +456,6 @@ export async function handleTicketButton(interaction) {
 
   const member = interaction.member;
   const staff = isStaffMember(member);
-  const opener = ticket.user_id === interaction.user.id;
 
   if (interaction.customId === 'ticket_claim') {
     if (!staff) {
@@ -484,54 +494,104 @@ export async function handleTicketButton(interaction) {
   }
 
   if (interaction.customId === 'ticket_close') {
-    if (!staff && !opener) {
-      return interaction.reply({ content: '❌ Seuls le staff ou l’auteur du ticket peuvent le fermer.', flags: MessageFlags.Ephemeral });
+    if (!(await canCloseTicket(interaction))) {
+      return interaction.reply({ content: '❌ Seuls les administrateurs et le propriétaire du serveur peuvent fermer un ticket.', flags: MessageFlags.Ephemeral });
     }
     if (ticket.status === 'closed') {
       return interaction.reply({ content: 'ℹ️ Ce ticket est déjà fermé.', flags: MessageFlags.Ephemeral });
     }
 
-    await closeTicket(thread.id);
-    const embed = buildTicketEmbed({
-      client: interaction.client,
-      userId: ticket.user_id,
-      type: ticket.type,
-      subject: ticket.subject,
-      claimedBy: ticket.claimed_by,
-      closed: true,
-    });
-
-    try {
-      await interaction.update({
-        embeds: [embed],
-        components: [ticketActionRow({ claimed: Boolean(ticket.claimed_by), closed: true })],
-      });
-    } catch (_) {
-      await interaction.reply({ content: '✅ Ticket fermé.', flags: MessageFlags.Ephemeral });
-    }
-
-    await thread
-      .send({
-        content: `🔒 Ticket fermé par <@${interaction.user.id}>.`,
-        allowedMentions: { users: [interaction.user.id] },
-      })
-      .catch(() => {});
-
-    try {
-      await sendTicketTranscript(interaction.client, {
-        thread,
-        ticket,
-        closedById: interaction.user.id,
-      });
-    } catch (err) {
-      console.warn("[L'éphémère] Transcript ticket:", err?.message || err);
-    }
-
-    try {
-      await thread.setLocked(true, `Ticket fermé par ${interaction.user.tag}`);
-      await thread.setArchived(true, `Ticket fermé par ${interaction.user.tag}`);
-    } catch (err) {
-      console.warn("[L'éphémère] Archivage ticket:", err?.message || err);
-    }
+    const modal = new ModalBuilder().setCustomId('ticket_close_modal').setTitle('Fermer le ticket');
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('close_reason')
+          .setLabel('Phrase de fermeture')
+          .setStyle(TextInputStyle.Paragraph)
+          .setRequired(true)
+          .setMinLength(8)
+          .setMaxLength(400)
+          .setPlaceholder('Ex. : Ticket pris en compte, la personne signalée a été bannie.')
+      )
+    );
+    return interaction.showModal(modal);
   }
+}
+
+async function editTicketControlMessage(thread, embed, claimed) {
+  const msgs = await thread.messages.fetch({ limit: 40 }).catch(() => null);
+  if (!msgs) return;
+  const target = msgs.find((m) =>
+    m.components?.some((row) => row.components?.some((c) => c.customId === 'ticket_close' || c.customId === 'ticket_claim'))
+  );
+  if (!target) return;
+  await target
+    .edit({
+      embeds: [embed],
+      components: [ticketActionRow({ claimed, closed: true })],
+    })
+    .catch(() => {});
+}
+
+export async function handleTicketCloseModal(interaction) {
+  const thread = interaction.channel;
+  if (!thread?.isThread?.()) {
+    return interaction.reply({ content: '❌ Ce formulaire ne fonctionne que dans un fil de ticket.', flags: MessageFlags.Ephemeral });
+  }
+
+  const ticket = await getTicketByThreadId(thread.id);
+  if (!ticket) {
+    return interaction.reply({ content: '❌ Ce fil n’est pas un ticket connu.', flags: MessageFlags.Ephemeral });
+  }
+
+  if (!(await canCloseTicket(interaction))) {
+    return interaction.reply({ content: '❌ Seuls les administrateurs et le propriétaire du serveur peuvent fermer un ticket.', flags: MessageFlags.Ephemeral });
+  }
+  if (ticket.status === 'closed') {
+    return interaction.reply({ content: 'ℹ️ Ce ticket est déjà fermé.', flags: MessageFlags.Ephemeral });
+  }
+
+  const closeReason =
+    sanitizeReason(interaction.fields.getTextInputValue('close_reason')) ||
+    'Ticket fermé sans phrase de clôture.';
+
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+  await closeTicket(thread.id, closeReason);
+
+  const embed = buildTicketEmbed({
+    client: interaction.client,
+    userId: ticket.user_id,
+    type: ticket.type,
+    subject: ticket.subject,
+    claimedBy: ticket.claimed_by,
+    closed: true,
+  });
+  await editTicketControlMessage(thread, embed, Boolean(ticket.claimed_by));
+
+  await thread
+    .send({
+      content: `🔒 Ticket fermé par <@${interaction.user.id}>.`,
+      allowedMentions: { users: [interaction.user.id] },
+    })
+    .catch(() => {});
+
+  try {
+    await sendTicketTranscript(interaction.client, {
+      thread,
+      ticket,
+      closedById: interaction.user.id,
+      closeReason,
+    });
+  } catch (err) {
+    console.warn("[L'éphémère] Transcript ticket:", err?.message || err);
+  }
+
+  try {
+    await thread.setLocked(true, `Ticket fermé par ${interaction.user.tag}`);
+    await thread.setArchived(true, `Ticket fermé par ${interaction.user.tag}`);
+  } catch (err) {
+    console.warn("[L'éphémère] Archivage ticket:", err?.message || err);
+  }
+
+  return interaction.editReply({ content: '✅ Ticket fermé. La phrase de clôture figure dans le transcript.' });
 }

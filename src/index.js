@@ -48,6 +48,8 @@ import {
   handleTicketOpenButton,
   isTicketModal,
   handleTicketModalSubmit,
+  isTicketCloseModal,
+  handleTicketCloseModal,
   isTicketButton,
   handleTicketButton,
 } from './commands/tickets.js';
@@ -290,6 +292,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
     if (interaction.isModalSubmit() && isTicketModal(interaction.customId)) {
       await handleTicketModalSubmit(interaction);
+      return;
+    }
+    if (interaction.isModalSubmit() && isTicketCloseModal(interaction.customId)) {
+      await handleTicketCloseModal(interaction);
       return;
     }
     if (interaction.isButton() && isTicketButton(interaction.customId)) {
