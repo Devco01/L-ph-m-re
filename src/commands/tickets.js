@@ -9,8 +9,6 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  StringSelectMenuBuilder,
-  StringSelectMenuOptionBuilder,
   ChannelType,
   ThreadAutoArchiveDuration,
 } from 'discord.js';
@@ -28,10 +26,38 @@ import { COLOR_OTHER, getBotAuthor, getBotFooter } from '../embeds.js';
 import { hasAdminRole, isStaffMember } from '../permissions.js';
 import { sanitizeReason } from '../validation.js';
 
+/**
+ * Couleurs demandées (#ef233c, #edf6f9, #aaf683) : Discord n’accepte pas d’hex sur les boutons.
+ * On mappe sur Danger (rouge), Secondary (gris clair), Success (vert).
+ */
 export const TICKET_TYPES = [
-  { id: 'signalement', label: 'Signalement', emoji: '🛠️', threadPrefix: 'Signalement', title: '🛠️ - Signalement / Aide' },
-  { id: 'aide', label: 'Aide', emoji: '💬', threadPrefix: 'Aide', title: '🛠️ - Signalement / Aide' },
-  { id: 'question', label: 'Question', emoji: '❓', threadPrefix: 'Question', title: '❓ - Question' },
+  {
+    id: 'signalement',
+    label: 'Signalement',
+    emoji: '🚨',
+    blurb: 'report / comportements / problèmes',
+    threadPrefix: 'Signalement',
+    title: '🚨 - Signalement',
+    buttonStyle: ButtonStyle.Danger,
+  },
+  {
+    id: 'aide',
+    label: 'Aide',
+    emoji: '❓',
+    blurb: 'aide générale / informations',
+    threadPrefix: 'Aide',
+    title: '❓ - Aide',
+    buttonStyle: ButtonStyle.Secondary,
+  },
+  {
+    id: 'certification',
+    label: 'Certification',
+    emoji: '📷',
+    blurb: 'vérifications & preuves',
+    threadPrefix: 'Certification',
+    title: '📷 - Certification',
+    buttonStyle: ButtonStyle.Success,
+  },
 ];
 
 function getTicketType(id) {
@@ -87,34 +113,37 @@ function buildTicketEmbed({ client, userId, type, subject, claimedBy = null, clo
 }
 
 function buildPanelEmbed(client) {
+  const categories = TICKET_TYPES.map((t) => `${t.emoji} **${t.label}** — ${t.blurb}`).join('\n');
   return new EmbedBuilder()
     .setColor(COLOR_OTHER)
     .setAuthor(getBotAuthor(client))
-    .setTitle('📥 Ouvrir un ticket')
     .setDescription(
       [
-        'Besoin d’aide, d’un signalement ou d’une question privée ?',
+        'Choisis la catégorie qui correspond à ta demande :',
         '',
-        'Choisis un type ci-dessous : un **fil privé** sera ouvert entre toi et l’équipe de modération.',
+        categories,
         '',
-        '• **Signalement** — comportement, ToS, preuves',
-        '• **Aide** — assistance, accès, problème technique',
-        '• **Question** — demande générale au staff',
+        '📌 **À savoir**',
+        '• Sois clair et précis dès le premier message.',
+        '• Un seul ticket ouvert à la fois.',
+        '• Le spam / les tickets abusifs sont interdits.',
+        '',
+        '🔒 **Confidentialité**',
+        'Les tickets sont des **fils privés** : seuls toi et le staff pouvez les voir.',
       ].join('\n')
     )
-    .setFooter(getBotFooter(client, {}));
+    .setFooter(getBotFooter(client, { extra: 'Support' }));
 }
 
-function buildPanelSelect() {
+function buildPanelButtons() {
   return new ActionRowBuilder().addComponents(
-    new StringSelectMenuBuilder()
-      .setCustomId('ticket_open')
-      .setPlaceholder('Ouvrir un ticket…')
-      .addOptions(
-        TICKET_TYPES.map((t) =>
-          new StringSelectMenuOptionBuilder().setLabel(t.label).setValue(t.id).setEmoji(t.emoji).setDescription(`Ouvrir un fil privé — ${t.label}`)
-        )
-      )
+    TICKET_TYPES.map((t) =>
+      new ButtonBuilder()
+        .setCustomId(`ticket_open_${t.id}`)
+        .setLabel(t.label)
+        .setEmoji(t.emoji)
+        .setStyle(t.buttonStyle)
+    )
   );
 }
 
@@ -126,6 +155,10 @@ export const ticketCommands = [
     .toJSON(),
 ];
 
+export function isTicketOpenButton(customId) {
+  return typeof customId === 'string' && customId.startsWith('ticket_open_');
+}
+
 export function isTicketSelect(customId) {
   return customId === 'ticket_open';
 }
@@ -136,6 +169,46 @@ export function isTicketModal(customId) {
 
 export function isTicketButton(customId) {
   return customId === 'ticket_claim' || customId === 'ticket_close';
+}
+
+async function showTicketSubjectModal(interaction, typeId) {
+  const meta = getTicketType(typeId);
+  if (!interaction.guild) {
+    return interaction.reply({ content: '❌ Utilisable uniquement sur un serveur.', flags: MessageFlags.Ephemeral });
+  }
+
+  const existing = await getOpenTicketForUser(interaction.guild.id, interaction.user.id);
+  if (existing) {
+    return interaction.reply({
+      content: `❌ Tu as déjà un ticket ouvert : <#${existing.thread_id}>. Ferme-le avant d’en ouvrir un autre.`,
+      flags: MessageFlags.Ephemeral,
+    });
+  }
+
+  const modal = new ModalBuilder().setCustomId(`ticket_modal_${meta.id}`).setTitle(`${meta.label} — sujet`);
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(
+      new TextInputBuilder()
+        .setCustomId('sujet')
+        .setLabel('Sujet de ta demande')
+        .setStyle(TextInputStyle.Paragraph)
+        .setRequired(true)
+        .setMinLength(4)
+        .setMaxLength(400)
+        .setPlaceholder('Décris brièvement le motif…')
+    )
+  );
+  return interaction.showModal(modal);
+}
+
+export async function handleTicketOpenButton(interaction) {
+  const typeId = String(interaction.customId || '').replace('ticket_open_', '');
+  return showTicketSubjectModal(interaction, typeId);
+}
+
+export async function handleTicketSelect(interaction) {
+  const typeId = interaction.values?.[0];
+  return showTicketSubjectModal(interaction, typeId);
 }
 
 export async function handleTicketPanel(interaction) {
@@ -170,7 +243,7 @@ export async function handleTicketPanel(interaction) {
 
   const msg = await channel.send({
     embeds: [buildPanelEmbed(interaction.client)],
-    components: [buildPanelSelect()],
+    components: [buildPanelButtons()],
   });
   await setTicketPanel(interaction.guild.id, channel.id, msg.id);
   const pingHint = config.ticketStaffRoleIds.length
@@ -180,37 +253,6 @@ export async function handleTicketPanel(interaction) {
     content: `✅ Panneau de tickets posté dans ${channel}. Les fils privés s’ouvriront ici.${pingHint}`,
     flags: MessageFlags.Ephemeral,
   });
-}
-
-export async function handleTicketSelect(interaction) {
-  const typeId = interaction.values?.[0];
-  const meta = getTicketType(typeId);
-  if (!interaction.guild) {
-    return interaction.reply({ content: '❌ Utilisable uniquement sur un serveur.', flags: MessageFlags.Ephemeral });
-  }
-
-  const existing = await getOpenTicketForUser(interaction.guild.id, interaction.user.id);
-  if (existing) {
-    return interaction.reply({
-      content: `❌ Tu as déjà un ticket ouvert : <#${existing.thread_id}>. Ferme-le avant d’en ouvrir un autre.`,
-      flags: MessageFlags.Ephemeral,
-    });
-  }
-
-  const modal = new ModalBuilder().setCustomId(`ticket_modal_${meta.id}`).setTitle(`${meta.label} — sujet`);
-  modal.addComponents(
-    new ActionRowBuilder().addComponents(
-      new TextInputBuilder()
-        .setCustomId('sujet')
-        .setLabel('Sujet de ta demande')
-        .setStyle(TextInputStyle.Paragraph)
-        .setRequired(true)
-        .setMinLength(4)
-        .setMaxLength(400)
-        .setPlaceholder('Décris brièvement le motif (ex. menaces, accès, question…)')
-    )
-  );
-  return interaction.showModal(modal);
 }
 
 export async function handleTicketModalSubmit(interaction) {
@@ -299,7 +341,7 @@ export async function handleTicketModalSubmit(interaction) {
     if (panel?.channel_id && panel?.message_id) {
       const ch = await interaction.client.channels.fetch(panel.channel_id).catch(() => null);
       const msg = ch?.messages ? await ch.messages.fetch(panel.message_id).catch(() => null) : null;
-      if (msg) await msg.edit({ components: [buildPanelSelect()] }).catch(() => {});
+      if (msg) await msg.edit({ components: [buildPanelButtons()] }).catch(() => {});
     }
   } catch (_) {}
 

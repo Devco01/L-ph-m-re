@@ -40,6 +40,8 @@ import {
   handleTicketPanel,
   isTicketSelect,
   handleTicketSelect,
+  isTicketOpenButton,
+  handleTicketOpenButton,
   isTicketModal,
   handleTicketModalSubmit,
   isTicketButton,
@@ -269,6 +271,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     if (interaction.isStringSelectMenu() && isTicketSelect(interaction.customId)) {
       await handleTicketSelect(interaction);
+      return;
+    }
+    if (interaction.isButton() && isTicketOpenButton(interaction.customId)) {
+      await handleTicketOpenButton(interaction);
       return;
     }
     if (interaction.isModalSubmit() && isTicketModal(interaction.customId)) {
