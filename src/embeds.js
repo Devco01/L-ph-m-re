@@ -1,7 +1,7 @@
 import { config } from './config.js';
 import { formatFooterDateTime } from './validation.js';
 
-const FOOTER_BRAND = "𝖫'𝖾́𝗉𝗁𝖾́𝗆𝖾̀𝗋𝖾 | 𝖲𝗎𝗉𝗉𝗈𝗋𝗍 ♡";
+const FOOTER_BRAND = '꒰・Chill Zone・꒱ 🧋';
 
 export const COLOR_SANCTION = config.embedColorSanction;
 export const COLOR_OTHER = config.embedColorOther;

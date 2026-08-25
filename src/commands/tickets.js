@@ -43,19 +43,19 @@ export const TICKET_TYPES = [
   {
     id: 'aide',
     label: 'Aide',
-    emoji: '❓',
-    blurb: 'aide générale / informations',
+    emoji: '💬',
+    blurb: 'questions, soucis de permissions ou signalement d’un bug',
     threadPrefix: 'Aide',
-    title: '❓ - Aide',
+    title: '💬 - Aide',
     buttonStyle: ButtonStyle.Secondary,
   },
   {
     id: 'certification',
     label: 'Certification',
-    emoji: '📷',
-    blurb: 'vérifications & preuves',
+    emoji: '✅',
+    blurb: 'vérification de ton âge et de l’authenticité de ton compte',
     threadPrefix: 'Certification',
-    title: '📷 - Certification',
+    title: '✅ - Certification',
     buttonStyle: ButtonStyle.Success,
   },
 ];
@@ -113,23 +113,26 @@ function buildTicketEmbed({ client, userId, type, subject, claimedBy = null, clo
 }
 
 function buildPanelEmbed(client) {
-  const categories = TICKET_TYPES.map((t) => `${t.emoji} **${t.label}** — ${t.blurb}`).join('\n');
   return new EmbedBuilder()
     .setColor(COLOR_OTHER)
     .setAuthor(getBotAuthor(client))
+    .setTitle('🎫 Besoin d’aide ?')
     .setDescription(
       [
-        'Choisis la catégorie qui correspond à ta demande :',
+        'Clique sur le bouton qui correspond le mieux à ta demande afin que ton ticket soit traité correctement :',
         '',
-        categories,
+        '🚨 **Signalement** — signaler un membre, un comportement ou un problème',
+        '💬 **Aide** — questions, soucis de permissions ou signalement d’un bug',
+        '✅ **Certification** — vérification de ton âge et de l’authenticité de ton compte',
         '',
-        '📌 **À savoir**',
-        '• Sois clair et précis dès le premier message.',
+        '📌 **À savoir :**',
+        '• Sois clair et précis dès ton premier message.',
         '• Un seul ticket ouvert à la fois.',
-        '• Le spam / les tickets abusifs sont interdits.',
+        '• Un ticket resté sans réponse pendant plus de 24 heures pourra faire l’objet d’un warn.',
+        '• La certification s’effectue uniquement par vérification en caméra + CNI.',
         '',
-        '🔒 **Confidentialité**',
-        'Les tickets sont des **fils privés** : seuls toi et le staff pouvez les voir.',
+        '🔒 **Confidentialité :**',
+        'Les tickets sont des espaces privés : seuls toi et les membres autorisés du staff peuvent les consulter.',
       ].join('\n')
     )
     .setFooter(getBotFooter(client, { extra: 'Support' }));
