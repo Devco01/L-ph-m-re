@@ -9,6 +9,7 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  AttachmentBuilder,
   ChannelType,
   ThreadAutoArchiveDuration,
 } from 'discord.js';
@@ -24,7 +25,7 @@ import {
 } from '../database.js';
 import { COLOR_OTHER, getBotAuthor, getBotFooter } from '../embeds.js';
 import { hasAdminRole, isStaffMember } from '../permissions.js';
-import { sanitizeReason } from '../validation.js';
+import { sanitizeReason, formatBanDate } from '../validation.js';
 
 /**
  * Couleurs demandées (#ef233c, #edf6f9, #aaf683) : Discord n’accepte pas d’hex sur les boutons.
@@ -62,6 +63,86 @@ export const TICKET_TYPES = [
 
 function getTicketType(id) {
   return TICKET_TYPES.find((t) => t.id === id) || TICKET_TYPES[0];
+}
+
+async function fetchThreadMessagesChronological(thread) {
+  const collected = [];
+  let before;
+  for (let i = 0; i < 25; i++) {
+    const batch = await thread.messages.fetch({ limit: 100, ...(before ? { before } : {}) });
+    if (!batch.size) break;
+    collected.push(...batch.values());
+    before = batch.last()?.id;
+    if (batch.size < 100) break;
+  }
+  collected.sort((a, b) => a.createdTimestamp - b.createdTimestamp);
+  return collected;
+}
+
+function formatTranscriptText({ ticket, meta, messages, closedById }) {
+  const header = [
+    `Ticket ${meta.label}`,
+    `Sujet : ${ticket.subject || '—'}`,
+    `Auteur : ${ticket.user_id}`,
+    ticket.claimed_by ? `Pris en charge par : ${ticket.claimed_by}` : null,
+    `Fermé par : ${closedById}`,
+    `Ouvert le : ${formatBanDate(ticket.created_at)}`,
+    `Messages : ${messages.length}`,
+    '—'.repeat(40),
+    '',
+  ]
+    .filter((l) => l != null)
+    .join('\n');
+
+  const body = messages
+    .map((msg) => {
+      const ts = formatBanDate(new Date(msg.createdTimestamp).toISOString());
+      const name = msg.author?.tag || msg.author?.username || 'inconnu';
+      const text = (msg.content || '').trim();
+      const atts = [...(msg.attachments?.values?.() || [])].map((a) => a.url);
+      const lines = [`[${ts}] ${name} (${msg.author?.id || '?'})`];
+      if (text) lines.push(text);
+      else if (!atts.length) lines.push('(pas de texte)');
+      for (const url of atts) lines.push(`Pièce jointe : ${url}`);
+      return lines.join('\n');
+    })
+    .join('\n\n');
+
+  return `${header}${body}\n`;
+}
+
+async function sendTicketTranscript(client, { thread, ticket, closedById }) {
+  const channelId = config.ticketTranscriptChannelId;
+  if (!channelId) return false;
+  const dest = await client.channels.fetch(channelId).catch(() => null);
+  if (!dest?.isTextBased?.()) {
+    console.warn(`[L'éphémère] Salon transcripts introuvable: ${channelId}`);
+    return false;
+  }
+
+  const meta = getTicketType(ticket.type);
+  const messages = await fetchThreadMessagesChronological(thread);
+  const text = formatTranscriptText({ ticket, meta, messages, closedById });
+  const file = new AttachmentBuilder(Buffer.from(text, 'utf8'), {
+    name: `ticket-${meta.id}-${ticket.user_id}.txt`,
+  });
+
+  const embed = new EmbedBuilder()
+    .setColor(COLOR_OTHER)
+    .setAuthor(getBotAuthor(client))
+    .setTitle(`${meta.emoji} Transcript — ${meta.label}`)
+    .setDescription(ticket.subject ? `**Sujet :** ${String(ticket.subject).slice(0, 1000)}` : 'Aucun sujet.')
+    .addFields(
+      { name: 'Auteur', value: `<@${ticket.user_id}>`, inline: true },
+      { name: 'Fermé par', value: `<@${closedById}>`, inline: true },
+      { name: 'Pris en charge', value: ticket.claimed_by ? `<@${ticket.claimed_by}>` : '—', inline: true },
+      { name: 'Messages', value: String(messages.length), inline: true },
+      { name: 'Fil', value: `<#${thread.id}>`, inline: true }
+    )
+    .setFooter(getBotFooter(client, { extra: 'Transcript', date: new Date() }));
+
+  await dest.send({ embeds: [embed], files: [file] });
+  return true;
 }
 
 function sanitizeThreadNamePart(name) {
@@ -435,6 +516,16 @@ export async function handleTicketButton(interaction) {
         allowedMentions: { users: [interaction.user.id] },
       })
       .catch(() => {});
+
+    try {
+      await sendTicketTranscript(interaction.client, {
+        thread,
+        ticket,
+        closedById: interaction.user.id,
+      });
+    } catch (err) {
+      console.warn("[L'éphémère] Transcript ticket:", err?.message || err);
+    }
 
     try {
       await thread.setLocked(true, `Ticket fermé par ${interaction.user.tag}`);

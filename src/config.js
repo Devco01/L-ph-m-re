@@ -84,6 +84,8 @@ export const config = {
   presentationResetMinBulk: parsePresentationResetMinBulk(),
   ticketStaffRoleIds: parseCsvList(process.env.TICKET_STAFF_ROLE_IDS || ''),
   ticketChannelId: (process.env.TICKET_CHANNEL_ID || '').trim() || null,
+  /** Salon des transcripts (tickets fermés). */
+  ticketTranscriptChannelId: (process.env.TICKET_TRANSCRIPT_CHANNEL_ID || '1541798701872316496').trim() || null,
   /** Salon où poster l’embed de signalement après un ban. */
   banLogChannelId: (process.env.BAN_LOG_CHANNEL_ID || '1541771698888646696').trim() || null,
 };

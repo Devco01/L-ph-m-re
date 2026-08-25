@@ -239,9 +239,9 @@ export async function handleAnalyseButton(interaction) {
 export const moderationCommands = [
   new SlashCommandBuilder()
     .setName('ban')
-    .setDescription('Bannir un utilisateur du serveur et l’enregistrer dans la base de données.')
+    .setDescription('Bannir un utilisateur du serveur (mention ou ID, même hors serveur).')
     .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
-    .addStringOption((o) => o.setName('utilisateur').setDescription('@membre ou ID Discord').setRequired(true).setAutocomplete(true))
+    .addStringOption((o) => o.setName('utilisateur').setDescription('@membre ou ID Discord (y compris hors serveur)').setRequired(true))
     .addStringOption((o) => o.setName('raison').setDescription('Raison du ban').setRequired(true).setMaxLength(500))
     .addStringOption((o) =>
       o
@@ -258,14 +258,14 @@ export const moderationCommands = [
     .toJSON(),
   new SlashCommandBuilder()
     .setName('unban')
-    .setDescription('Débannir un utilisateur (par son ID) et le retirer de la base de données.')
+    .setDescription('Débannir un utilisateur par son ID Discord.')
     .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
     .addStringOption((o) => o.setName('utilisateur').setDescription('ID Discord de l’utilisateur à débannir').setRequired(true))
     .addStringOption((o) => o.setName('raison').setDescription('Raison du unban').setRequired(true).setMaxLength(500))
     .toJSON(),
   new SlashCommandBuilder()
     .setName('warn')
-    .setDescription('Enregistrer un avertissement pour un utilisateur')
+    .setDescription('Donner un avertissement à un utilisateur')
     .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
     .addStringOption((o) => o.setName('utilisateur').setDescription('@membre ou ID Discord').setRequired(true).setAutocomplete(true))
     .addStringOption((o) => o.setName('raison').setDescription('Raison (texte libre, max 500 car.)').setRequired(true).setMaxLength(500))
@@ -277,7 +277,11 @@ export const moderationCommands = [
     .addStringOption((o) => o.setName('utilisateur').setDescription('Mention (@utilisateur) ou ID Discord').setRequired(true).setAutocomplete(true))
     .addStringOption((o) => o.setName('raison').setDescription('Raison du retrait').setRequired(true).setMaxLength(500))
     .toJSON(),
-  new SlashCommandBuilder().setName('analyse').setDescription('Analyser les pseudos similaires (modération)').toJSON(),
+  new SlashCommandBuilder()
+    .setName('analyse')
+    .setDescription('Analyser les pseudos similaires (modération)')
+    .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
+    .toJSON(),
 ];
 
 export async function handleMemberAutocomplete(interaction) {
@@ -441,7 +445,7 @@ export async function handleBan(interaction) {
     const userId = parseUserIdFromOption(utilisateurRaw);
 
     if (!userId) {
-      return replyBanError('❌ **Utilisateur** invalide. Indique @membre ou un ID Discord.');
+      return replyBanError('❌ **Utilisateur** invalide. Indique @membre ou un ID Discord (17–20 chiffres), même s’il n’est plus sur le serveur.');
     }
 
     const me = guild.members.me ?? (await guild.members.fetchMe().catch(() => null));
@@ -780,6 +784,13 @@ export async function handleAnalyse(interaction) {
     } catch (_) {
       members = [...guild.members.cache.values()];
     }
+  }
+
+  if (members.length === 0) {
+    return interaction.editReply({
+      content:
+        '❌ Impossible de récupérer la liste des membres. Vérifie l’intent **Server Members** dans le Developer Portal (comme sur Eden).',
+    });
   }
 
   const pool = members

@@ -274,7 +274,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     attachResilientInteractionHandlers(interaction);
 
     if (interaction.isAutocomplete()) {
-      if (interaction.commandName === 'ban' || interaction.commandName === 'warn' || interaction.commandName === 'unwarn') {
+      if (interaction.commandName === 'warn' || interaction.commandName === 'unwarn') {
         await handleMemberAutocomplete(interaction).catch(() => {});
       }
       return;
