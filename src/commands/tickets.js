@@ -34,10 +34,10 @@ export const TICKET_TYPES = [
   {
     id: 'signalement',
     label: 'Signalement',
-    emoji: '🚨',
+    emoji: '\u{1F3F3}\u{FE0F}',
     blurb: 'report / comportements / problèmes',
     threadPrefix: 'Signalement',
-    title: '🚨 - Signalement',
+    title: '\u{1F3F3}\u{FE0F} - Signalement',
     buttonStyle: ButtonStyle.Danger,
   },
   {
