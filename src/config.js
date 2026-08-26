@@ -63,8 +63,9 @@ function parsePresentationResetChannelIds() {
 }
 
 function parseSelfieChannelIds() {
-  const raw = (process.env.SELFIE_CHANNEL_IDS || '1542091567379259482').trim();
-  return new Set(parseCsvList(raw));
+  const defaults = ['1542091567379259482', '1542107996169961533'];
+  const extra = parseCsvList(process.env.SELFIE_CHANNEL_IDS || '');
+  return new Set([...defaults, ...extra]);
 }
 
 function parseSelfieReactions() {

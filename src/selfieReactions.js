@@ -42,7 +42,6 @@ function parseReactionIdentifier(raw) {
 }
 
 function selfieReactionList() {
-  if (process.env.SELFIE_REACTIONS?.trim()) return config.selfieReactions;
   return SELFIE_REACTION_IDS;
 }
 
@@ -115,6 +114,7 @@ export async function handleSelfieChannelReaction(message) {
   } catch (_) {}
 
   rememberReacted(message.id);
+  console.log(`[L'éphémère] selfie réactions (ordre) sur ${message.id}: ${reactions.join(' → ')}`);
 
   for (let i = 0; i < reactions.length; i++) {
     const raw = reactions[i];
