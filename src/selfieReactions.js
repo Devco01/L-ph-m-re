@@ -4,6 +4,18 @@ import { config } from './config.js';
 const MEDIA_ATTACHMENT_EXT = /\.(png|jpe?g|gif|webp|bmp|heic|heif|mp4|mov|webm)$/i;
 const recentlyReacted = new Set();
 
+/** Ordre imposé : orange, néon, slay, étoile. */
+const SELFIE_REACTION_IDS = [
+  '1541763451741802507',
+  '1541763149538131978',
+  '1541764065091780669',
+  '1541786113188962314',
+];
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function rememberReacted(messageId) {
   recentlyReacted.add(messageId);
   if (recentlyReacted.size > 400) {
@@ -27,6 +39,11 @@ function parseReactionIdentifier(raw) {
   if (parsed?.id) return { id: parsed.id, animated: Boolean(parsed.animated) };
   if (/^\d{17,20}$/.test(s)) return { id: s, animated: false };
   return s;
+}
+
+function selfieReactionList() {
+  if (process.env.SELFIE_REACTIONS?.trim()) return config.selfieReactions;
+  return SELFIE_REACTION_IDS;
 }
 
 function messageHasImage(message) {
@@ -82,7 +99,7 @@ export async function handleSelfieChannelReaction(message) {
   if (!messageHasImage(message)) return;
   if (recentlyReacted.has(message.id)) return;
 
-  const reactions = config.selfieReactions;
+  const reactions = selfieReactionList();
   if (!reactions?.length || !message.react) return;
 
   const channel = message.channel;
@@ -99,12 +116,14 @@ export async function handleSelfieChannelReaction(message) {
 
   rememberReacted(message.id);
 
-  for (const raw of reactions) {
+  for (let i = 0; i < reactions.length; i++) {
+    const raw = reactions[i];
     try {
       const parsed = parseReactionIdentifier(raw);
       const emoji = await resolveReactEmoji(message.guild, parsed);
       if (!emoji) continue;
       await message.react(emoji);
+      if (i < reactions.length - 1) await wait(400);
     } catch (e) {
       console.warn(`[L'éphémère] selfie réaction impossible (${raw}):`, e?.message || e);
     }
