@@ -371,6 +371,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         await handleConfessionLog(interaction);
         break;
       case 'reglement':
+      case 'règlement':
         await handleReglement(interaction);
         break;
       default:

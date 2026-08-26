@@ -16,11 +16,9 @@ const MEMBER_ROLE_ID = (process.env.REGLEMENT_MEMBER_ROLE_ID || '154214947420032
 const REGLEMENT_ACCEPT_BUTTON_ID = 'reglement_accept';
 
 function barParagraph(...lines) {
-  return lines
-    .join('\n')
-    .split('\n')
-    .map((line) => (line.length ? `│ ${line}` : '│'))
-    .join('\n');
+  if (!lines.length) return '';
+  const [first, ...rest] = lines;
+  return [`| ${first}`, ...rest].join('\n');
 }
 
 function buildReglementEmbed(client) {
