@@ -18,7 +18,7 @@ const REGLEMENT_ACCEPT_BUTTON_ID = 'reglement_accept';
 function barParagraph(...lines) {
   if (!lines.length) return '';
   const [first, ...rest] = lines;
-  return [`| ${first}`, ...rest].join('\n');
+  return [`✦ ${first}`, ...rest].join('\n');
 }
 
 function buildReglementEmbed(client) {
