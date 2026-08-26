@@ -240,7 +240,8 @@ export const moderationCommands = [
   new SlashCommandBuilder()
     .setName('ban')
     .setDescription('Bannir un utilisateur du serveur (mention ou ID, même hors serveur).')
-    .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .setDMPermission(false)
     .addStringOption((o) => o.setName('utilisateur').setDescription('@membre ou ID Discord (y compris hors serveur)').setRequired(true))
     .addStringOption((o) => o.setName('raison').setDescription('Raison du ban').setRequired(true).setMaxLength(500))
     .addStringOption((o) =>
@@ -259,28 +260,32 @@ export const moderationCommands = [
   new SlashCommandBuilder()
     .setName('unban')
     .setDescription('Débannir un utilisateur par son ID Discord.')
-    .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .setDMPermission(false)
     .addStringOption((o) => o.setName('utilisateur').setDescription('ID Discord de l’utilisateur à débannir').setRequired(true))
     .addStringOption((o) => o.setName('raison').setDescription('Raison du unban').setRequired(true).setMaxLength(500))
     .toJSON(),
   new SlashCommandBuilder()
     .setName('warn')
     .setDescription('Donner un avertissement à un utilisateur')
-    .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .setDMPermission(false)
     .addStringOption((o) => o.setName('utilisateur').setDescription('@membre ou ID Discord').setRequired(true).setAutocomplete(true))
     .addStringOption((o) => o.setName('raison').setDescription('Raison (texte libre, max 500 car.)').setRequired(true).setMaxLength(500))
     .toJSON(),
   new SlashCommandBuilder()
     .setName('unwarn')
     .setDescription('Retirer un avertissement d’un utilisateur (sélection + raison).')
-    .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .setDMPermission(false)
     .addStringOption((o) => o.setName('utilisateur').setDescription('Mention (@utilisateur) ou ID Discord').setRequired(true).setAutocomplete(true))
     .addStringOption((o) => o.setName('raison').setDescription('Raison du retrait').setRequired(true).setMaxLength(500))
     .toJSON(),
   new SlashCommandBuilder()
     .setName('analyse')
     .setDescription('Analyser les pseudos similaires (modération)')
-    .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .setDMPermission(false)
     .toJSON(),
 ];
 

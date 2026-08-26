@@ -21,7 +21,7 @@ import {
 } from '../database.js';
 import { checkRateLimit } from '../rateLimit.js';
 import { COLOR_OTHER, getBotAuthor, getBotFooter } from '../embeds.js';
-import { hasAdminRole } from '../permissions.js';
+import { canCloseTicket } from '../permissions.js';
 
 function replyRateLimited(interaction, retryAfterMs) {
   return interaction.reply({
@@ -100,8 +100,9 @@ export const confessionCommands = [
     .toJSON(),
   new SlashCommandBuilder()
     .setName('confession-log')
-    .setDescription('Configurer les logs staff des confessions (admins uniquement).')
-    .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
+    .setDescription('Configurer les logs staff des confessions.')
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .setDMPermission(false)
     .addSubcommand((sub) =>
       sub
         .setName('configurer')
@@ -144,8 +145,11 @@ export async function handleConfessionLog(interaction) {
   if (!guild) {
     return interaction.reply({ content: '❌ Commande utilisable uniquement sur un serveur.', flags: MessageFlags.Ephemeral });
   }
-  if (!(await hasAdminRole(interaction))) {
-    return interaction.reply({ content: '❌ Tu n’as pas le droit d’utiliser cette commande.', flags: MessageFlags.Ephemeral });
+  if (!(await canCloseTicket(interaction))) {
+    return interaction.reply({
+      content: '❌ Réservé aux **administrateurs** et au **propriétaire** du serveur.',
+      flags: MessageFlags.Ephemeral,
+    });
   }
 
   const sub = interaction.options.getSubcommand();
