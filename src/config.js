@@ -70,9 +70,9 @@ function parseSelfieChannelIds() {
 
 function parseSelfieReactions() {
   const fallback = [
-    'https://cdn.discordapp.com/emojis/1541763451741802507.webp?size=44',
-    'https://cdn.discordapp.com/emojis/1541763149538131978.webp?size=44',
     'https://cdn.discordapp.com/emojis/1541764065091780669.webp?size=44',
+    'https://cdn.discordapp.com/emojis/1541763149538131978.webp?size=44',
+    'https://cdn.discordapp.com/emojis/1541763451741802507.webp?size=44',
     'https://cdn.discordapp.com/emojis/1541786113188962314.webp?size=44',
   ].join(',');
   return parseCsvList(process.env.SELFIE_REACTIONS || fallback);

@@ -4,12 +4,12 @@ import { config } from './config.js';
 const MEDIA_ATTACHMENT_EXT = /\.(png|jpe?g|gif|webp|bmp|heic|heif|mp4|mov|webm)$/i;
 const recentlyReacted = new Set();
 
-/** Ordre imposé : orange, néon, slay, étoile. */
+/** Ordre imposé : orange, néon, slay, étoile (noms Discord réels). */
 const SELFIE_REACTION_IDS = [
-  '1541763451741802507',
-  '1541763149538131978',
-  '1541764065091780669',
-  '1541786113188962314',
+  '1541764065091780669', // orangeheart
+  '1541763149538131978', // orangeneonheart
+  '1541763451741802507', // slay
+  '1541786113188962314', // orangestar
 ];
 
 function wait(ms) {
