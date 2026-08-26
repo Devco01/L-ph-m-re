@@ -410,6 +410,11 @@ client.on(Events.MessageUpdate, async (_oldMessage, newMessage) => {
   } catch (err) {
     console.error("[L'éphémère] Erreur maj preuve:", err?.message || err);
   }
+  try {
+    await handleSelfieChannelReaction(msg);
+  } catch (err) {
+    console.error("[L'éphémère] Erreur réactions salon selfie (maj):", err?.message || err);
+  }
 });
 
 client.on(Events.MessageDelete, async (message) => {
