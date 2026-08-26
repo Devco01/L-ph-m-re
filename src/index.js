@@ -55,6 +55,7 @@ import {
 } from './commands/tickets.js';
 import { handlePresentationChannelBulkDelete, handlePresentationChannelDelete } from './presentationReset.js';
 import { persistBanProofMessage, deleteBanProofsForDeletedMessage } from './banProofs.js';
+import { handleSelfieChannelReaction } from './selfieReactions.js';
 
 validateConfig();
 
@@ -387,6 +388,11 @@ client.on(Events.MessageCreate, async (message) => {
     await persistBanProofMessage(message, { replace: false });
   } catch (err) {
     console.error("[L'éphémère] Erreur enregistrement preuve:", err?.message || err);
+  }
+  try {
+    await handleSelfieChannelReaction(message);
+  } catch (err) {
+    console.error("[L'éphémère] Erreur réactions salon selfie:", err?.message || err);
   }
 });
 

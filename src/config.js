@@ -58,7 +58,23 @@ function parsePresentationReactions() {
 }
 
 function parsePresentationResetChannelIds() {
-  return new Set(parseCsvList(process.env.PRESENTATION_RESET_CHANNEL_IDS || ''));
+  const raw = process.env.PRESENTATION_RESET_CHANNEL_IDS || process.env.PRESENTATION_CHANNEL_ID || '1542091635372990484';
+  return new Set(parseCsvList(raw));
+}
+
+function parseSelfieChannelIds() {
+  const raw = (process.env.SELFIE_CHANNEL_IDS || '1542091567379259482').trim();
+  return new Set(parseCsvList(raw));
+}
+
+function parseSelfieReactions() {
+  const fallback = [
+    'https://cdn.discordapp.com/emojis/1541763451741802507.webp?size=44',
+    'https://cdn.discordapp.com/emojis/1541763149538131978.webp?size=44',
+    'https://cdn.discordapp.com/emojis/1541764065091780669.webp?size=44',
+    'https://cdn.discordapp.com/emojis/1541786113188962314.webp?size=44',
+  ].join(',');
+  return parseCsvList(process.env.SELFIE_REACTIONS || fallback);
 }
 
 function parsePresentationResetMinBulk() {
@@ -82,6 +98,9 @@ export const config = {
   presentationReactions: parsePresentationReactions(),
   presentationResetChannelIds: parsePresentationResetChannelIds(),
   presentationResetMinBulk: parsePresentationResetMinBulk(),
+  presentationChannelId: (process.env.PRESENTATION_CHANNEL_ID || '1542091635372990484').trim() || null,
+  selfieChannelIds: parseSelfieChannelIds(),
+  selfieReactions: parseSelfieReactions(),
   ticketStaffRoleIds: parseCsvList(process.env.TICKET_STAFF_ROLE_IDS || ''),
   ticketChannelId: (process.env.TICKET_CHANNEL_ID || '').trim() || null,
   /** Salon des transcripts (tickets fermés). */

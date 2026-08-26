@@ -707,7 +707,7 @@ export async function handlePresentationButton(interaction) {
       const guildId = interaction.guild?.id;
       const userId = interaction.user?.id;
       const existing = guildId && userId ? await getPresentationMessage(guildId, userId, 'generale').catch(() => null) : null;
-      const sessionChannelId = session.channelId || interaction.channelId;
+      const sessionChannelId = config.presentationChannelId || session.channelId || interaction.channelId;
 
       if (existing?.channel_id && existing?.message_id) {
         try {
