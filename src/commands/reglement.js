@@ -101,21 +101,26 @@ export function isReglementButton(customId) {
 }
 
 export const reglementCommands = [
-  new SlashCommandBuilder()
-    .setName('reglement')
-    .setNameLocalizations({ fr: 'règlement' })
-    .setDescription('Poster le règlement du serveur dans ce salon.')
-    .setDescriptionLocalizations({ fr: 'Poster le règlement du serveur dans ce salon.' })
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    .setDMPermission(false)
-    .addChannelOption((o) =>
-      o
-        .setName('salon')
-        .setDescription('Salon où poster le règlement (sinon le salon actuel)')
-        .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
-        .setRequired(false)
-    )
-    .toJSON(),
+  (() => {
+    const json = new SlashCommandBuilder()
+      .setName('reglement')
+      .setNameLocalizations({ fr: 'règlement' })
+      .setDescription('Poster le règlement du serveur dans ce salon.')
+      .setDescriptionLocalizations({ fr: 'Poster le règlement du serveur dans ce salon.' })
+      .setDefaultMemberPermissions(0n)
+      .setDMPermission(false)
+      .addChannelOption((o) =>
+        o
+          .setName('salon')
+          .setDescription('Salon où poster le règlement (sinon le salon actuel)')
+          .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
+          .setRequired(false)
+      )
+      .toJSON();
+    json.default_member_permissions = '0';
+    json.dm_permission = false;
+    return json;
+  })(),
 ];
 
 export async function handleReglement(interaction) {

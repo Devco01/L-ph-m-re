@@ -226,6 +226,7 @@ async function registerCommands() {
   const rest = new REST().setToken(config.token);
   const body = commands;
   if (config.guildId) {
+    await rest.put(Routes.applicationCommands(client.user.id), { body: [] });
     return await rest.put(Routes.applicationGuildCommands(client.user.id, config.guildId), { body });
   }
   return await rest.put(Routes.applicationCommands(client.user.id), { body });
