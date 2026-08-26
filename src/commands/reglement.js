@@ -90,7 +90,7 @@ function buildReglementButtons() {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(REGLEMENT_ACCEPT_BUTTON_ID)
-      .setEmoji('✅')
+      .setEmoji('✔')
       .setLabel('Lu et approuvé')
       .setStyle(ButtonStyle.Success)
   );
