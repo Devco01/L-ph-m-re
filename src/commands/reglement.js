@@ -15,11 +15,11 @@ const SAKURA = '<:CZsakurablossom:1542146100180418610>';
 const MEMBER_ROLE_ID = (process.env.REGLEMENT_MEMBER_ROLE_ID || '1542149474200326174').trim();
 const REGLEMENT_ACCEPT_BUTTON_ID = 'reglement_accept';
 
-function quoteParagraph(...lines) {
+function barParagraph(...lines) {
   return lines
     .join('\n')
     .split('\n')
-    .map((line) => (line.length ? `> ${line}` : '>'))
+    .map((line) => (line.length ? `│ ${line}` : '│'))
     .join('\n');
 }
 
@@ -29,37 +29,37 @@ function buildReglementEmbed(client) {
     '',
     'Afin de préserver un espace chill, convivial, bienveillant et sécurisé, merci de prendre connaissance du règlement avant de participer à la vie du serveur.',
     '',
-    quoteParagraph(
+    barParagraph(
       '1. 🔒 Serveur 100 % SFW :',
       'Ce serveur est exclusivement SFW. Tout contenu à caractère sexuel ou pornographique; illégal; gore; extrêmement violent; est strictement interdit. Tout contenu de ce type sera supprimé immédiatement et entraînera un ban définitif, sans avertissement préalable.'
     ),
     '',
-    quoteParagraph(
+    barParagraph(
       '2. 👶 Âge minimum :',
       'Les membres âgés de 15 à 17 ans sont autorisés sur le serveur. Les personnes ayant moins de 15 ans ne sont pas autorisées à rejoindre la communauté. L’âge minimum requis pour utiliser Discord en France est de 15 ans. Merci de respecter cette limite d’âge.'
     ),
     '',
-    quoteParagraph(
+    barParagraph(
       '3. 🛡️ Vérification de l’âge & protection des mineurs :',
       'Afin de garantir un environnement sécurisé pour notre population la plus jeune, les personnes âgées de plus de 40 ans ne sont pas autorisées sur le serveur. En cas de doute concernant l’âge déclaré d’un membre, la modération se réserve le droit de vous convoquer en entretien afin de procéder à une vérification d’âge. Cette vérification pourra être demandée notamment lorsqu’un profil, un comportement ou des informations fournies semblent incohérents avec l’âge déclaré. Un refus de coopérer à une vérification d’âge pourra entraîner une exclusion temporaire ou définitive du serveur.'
     ),
     '',
-    quoteParagraph(
+    barParagraph(
       '4. 🚨 Protection des mineurs & comportements inappropriés :',
       'Toute personne ayant des comportements de « pointeur » envers des mineurs sera bannie définitivement. Il est strictement interdit d’entretenir ou de rechercher une relation sexuelle et/ou amoureuse avec un(e) mineur(e). Si vous êtes témoin d’un comportement qui vous semble inapproprié, prédateur, manipulateur ou suspect envers un mineur, merci de le signaler immédiatement à la modération.'
     ),
     '',
-    quoteParagraph(
+    barParagraph(
       '5. 🏷️ Utilisation des salons :',
       'Merci de respecter l’utilisation prévue pour chaque salon. Postez vos messages dans les salons appropriés et évitez le hors sujet lorsque celui-ci n’est pas autorisé.'
     ),
     '',
-    quoteParagraph(
+    barParagraph(
       '6. 🎫 Tickets :',
       'Lorsque vous ouvrez un ticket auprès de la modération, merci de rester réactif et disponible. Nous faisons notre maximum pour vous répondre rapidement; nous vous demandons donc d’en faire de même. Un ticket resté sans réponse pendant plus de 24 heures entraînera un warn.'
     ),
     '',
-    quoteParagraph(
+    barParagraph(
       '7. 🚫 Respect & tolérance :',
       'Aucun comportement discriminatoire ou haineux ne sera toléré.',
       'Sont notamment interdits :',
@@ -73,7 +73,7 @@ function buildReglementEmbed(client) {
       'Tout comportement grave entraînera un ban immédiat et définitif, sans avertissement.'
     ),
     '',
-    quoteParagraph(
+    barParagraph(
       '8. 🌿 Le mot d’ordre : bienveillance',
       'Chill Zoneˢᶠᵂ | FR est avant tout un espace où chacun doit pouvoir se sentir à l’aise, respecté et en sécurité. Soyez respectueux envers les autres membres, la modération et vous-même. En cas de conflit ou de situation problématique, privilégiez le dialogue et faites appel à la modération.'
     ),
@@ -92,6 +92,7 @@ function buildReglementButtons() {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(REGLEMENT_ACCEPT_BUTTON_ID)
+      .setEmoji('✅')
       .setLabel('Lu et approuvé')
       .setStyle(ButtonStyle.Success)
   );
