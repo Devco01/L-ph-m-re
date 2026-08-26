@@ -61,6 +61,7 @@ import {
   handleConfessionReponse,
   handleConfessionLog,
 } from './commands/confession.js';
+import { handleReglement } from './commands/reglement.js';
 
 validateConfig();
 
@@ -363,6 +364,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
         break;
       case 'confession-log':
         await handleConfessionLog(interaction);
+        break;
+      case 'reglement':
+        await handleReglement(interaction);
         break;
       default:
         await interaction.reply({ content: 'Commande inconnue.', flags: MessageFlags.Ephemeral });
