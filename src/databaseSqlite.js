@@ -120,6 +120,21 @@ function initDb() {
     db.exec('ALTER TABLE tickets ADD COLUMN close_reason TEXT');
   }
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS confession_log_channels (
+      guild_id TEXT NOT NULL,
+      source_channel_id TEXT NOT NULL,
+      log_channel_id TEXT NOT NULL,
+      PRIMARY KEY (guild_id, source_channel_id)
+    );
+    CREATE TABLE IF NOT EXISTS confession_seq (
+      guild_id TEXT NOT NULL,
+      source_channel_id TEXT NOT NULL,
+      seq INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (guild_id, source_channel_id)
+    );
+  `);
+
   return db;
 }
 
@@ -384,4 +399,50 @@ export function releaseInstanceLock(key, owner) {
   } catch (_) {
     return false;
   }
+}
+
+export function upsertConfessionLogConfig(guildId, sourceChannelId, logChannelId) {
+  db.prepare(
+    'INSERT OR REPLACE INTO confession_log_channels (guild_id, source_channel_id, log_channel_id) VALUES (?, ?, ?)'
+  ).run(guildId, sourceChannelId, logChannelId);
+}
+
+export function removeConfessionLogConfig(guildId, sourceChannelId) {
+  db.prepare('DELETE FROM confession_log_channels WHERE guild_id = ? AND source_channel_id = ?').run(guildId, sourceChannelId);
+  db.prepare('DELETE FROM confession_seq WHERE guild_id = ? AND source_channel_id = ?').run(guildId, sourceChannelId);
+}
+
+export function clearAllConfessionLogConfigsForGuild(guildId) {
+  db.prepare('DELETE FROM confession_log_channels WHERE guild_id = ?').run(guildId);
+  db.prepare('DELETE FROM confession_seq WHERE guild_id = ?').run(guildId);
+}
+
+export function listConfessionLogConfigsForGuild(guildId) {
+  return db
+    .prepare('SELECT source_channel_id, log_channel_id FROM confession_log_channels WHERE guild_id = ?')
+    .all(guildId)
+    .map((r) => ({ sourceChannelId: r.source_channel_id, logChannelId: r.log_channel_id }));
+}
+
+export function findConfessionLogConfig(guildId, sourceChannelId) {
+  const row = db
+    .prepare(
+      'SELECT source_channel_id, log_channel_id FROM confession_log_channels WHERE guild_id = ? AND source_channel_id = ?'
+    )
+    .get(guildId, sourceChannelId);
+  return row ? { sourceChannelId: row.source_channel_id, logChannelId: row.log_channel_id } : null;
+}
+
+const stmtConfessionInc = db.prepare(`
+  INSERT INTO confession_seq (guild_id, source_channel_id, seq) VALUES (?, ?, 1)
+  ON CONFLICT(guild_id, source_channel_id) DO UPDATE SET seq = seq + 1
+`);
+const stmtConfessionGetSeq = db.prepare(
+  'SELECT seq FROM confession_seq WHERE guild_id = ? AND source_channel_id = ?'
+);
+
+export function incrementConfessionNumber(guildId, sourceChannelId) {
+  stmtConfessionInc.run(guildId, sourceChannelId);
+  const r = stmtConfessionGetSeq.get(guildId, sourceChannelId);
+  return r ? Number(r.seq) : 1;
 }

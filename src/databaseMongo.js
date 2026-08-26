@@ -33,6 +33,8 @@ export async function initDatabase() {
     await db.collection('interaction_dedup').createIndex({ created_at: 1 }, { expireAfterSeconds: 7 * 24 * 60 * 60 });
   } catch (_) {}
   await db.collection('instance_lock').createIndex({ key: 1 }, { unique: true });
+  await db.collection('confession_log_channels').createIndex({ guild_id: 1, source_channel_id: 1 }, { unique: true });
+  await db.collection('confession_seq').createIndex({ guild_id: 1, source_channel_id: 1 }, { unique: true });
   return db;
 }
 
@@ -364,4 +366,51 @@ export async function getInstanceLockInfo(key) {
   } catch (_) {
     return null;
   }
+}
+
+export async function upsertConfessionLogConfig(guildId, sourceChannelId, logChannelId) {
+  await db.collection('confession_log_channels').updateOne(
+    { guild_id: guildId, source_channel_id: sourceChannelId },
+    { $set: { guild_id: guildId, source_channel_id: sourceChannelId, log_channel_id: logChannelId } },
+    { upsert: true }
+  );
+}
+
+export async function removeConfessionLogConfig(guildId, sourceChannelId) {
+  await db.collection('confession_log_channels').deleteOne({ guild_id: guildId, source_channel_id: sourceChannelId });
+  await db.collection('confession_seq').deleteOne({ guild_id: guildId, source_channel_id: sourceChannelId });
+}
+
+export async function clearAllConfessionLogConfigsForGuild(guildId) {
+  await db.collection('confession_log_channels').deleteMany({ guild_id: guildId });
+  await db.collection('confession_seq').deleteMany({ guild_id: guildId });
+}
+
+export async function listConfessionLogConfigsForGuild(guildId) {
+  const docs = await db.collection('confession_log_channels').find({ guild_id: guildId }).toArray();
+  return docs.map((d) => ({
+    sourceChannelId: d.source_channel_id,
+    logChannelId: d.log_channel_id,
+  }));
+}
+
+export async function findConfessionLogConfig(guildId, sourceChannelId) {
+  const doc = await db
+    .collection('confession_log_channels')
+    .findOne({ guild_id: guildId, source_channel_id: sourceChannelId });
+  if (!doc) return null;
+  return { sourceChannelId: doc.source_channel_id, logChannelId: doc.log_channel_id };
+}
+
+export async function incrementConfessionNumber(guildId, sourceChannelId) {
+  await db.collection('confession_seq').updateOne(
+    { guild_id: guildId, source_channel_id: sourceChannelId },
+    { $inc: { seq: 1 } },
+    { upsert: true }
+  );
+  const doc = await db.collection('confession_seq').findOne({
+    guild_id: guildId,
+    source_channel_id: sourceChannelId,
+  });
+  return typeof doc?.seq === 'number' && doc.seq > 0 ? doc.seq : 1;
 }

@@ -73,3 +73,10 @@ export const claimTicket = wrap('claimTicket');
 export const closeTicket = wrap('closeTicket');
 export const setTicketPanel = wrap('setTicketPanel');
 export const getTicketPanel = wrap('getTicketPanel');
+
+export const upsertConfessionLogConfig = wrap('upsertConfessionLogConfig');
+export const removeConfessionLogConfig = wrap('removeConfessionLogConfig');
+export const clearAllConfessionLogConfigsForGuild = wrap('clearAllConfessionLogConfigsForGuild');
+export const listConfessionLogConfigsForGuild = wrap('listConfessionLogConfigsForGuild');
+export const findConfessionLogConfig = wrap('findConfessionLogConfig');
+export const incrementConfessionNumber = wrap('incrementConfessionNumber');

@@ -55,7 +55,12 @@ import {
 } from './commands/tickets.js';
 import { handlePresentationChannelBulkDelete, handlePresentationChannelDelete } from './presentationReset.js';
 import { persistBanProofMessage, deleteBanProofsForDeletedMessage } from './banProofs.js';
-import { handleSelfieChannelReaction } from './selfieReactions.js';
+import { handleSelfieChannelReaction, keepSelfieThreadOpen } from './selfieReactions.js';
+import {
+  handleConfession,
+  handleConfessionReponse,
+  handleConfessionLog,
+} from './commands/confession.js';
 
 validateConfig();
 
@@ -350,6 +355,15 @@ client.on(Events.InteractionCreate, async (interaction) => {
       case 'ticket-panel':
         await handleTicketPanel(interaction);
         break;
+      case 'confession':
+        await handleConfession(interaction);
+        break;
+      case 'confession-reponse':
+        await handleConfessionReponse(interaction);
+        break;
+      case 'confession-log':
+        await handleConfessionLog(interaction);
+        break;
       default:
         await interaction.reply({ content: 'Commande inconnue.', flags: MessageFlags.Ephemeral });
     }
@@ -414,6 +428,14 @@ client.on(Events.MessageUpdate, async (_oldMessage, newMessage) => {
     await handleSelfieChannelReaction(msg);
   } catch (err) {
     console.error("[L'éphémère] Erreur réactions salon selfie (maj):", err?.message || err);
+  }
+});
+
+client.on(Events.ThreadUpdate, async (oldThread, newThread) => {
+  try {
+    await keepSelfieThreadOpen(oldThread, newThread);
+  } catch (err) {
+    console.error("[L'éphémère] Erreur maintien fil selfie:", err?.message || err);
   }
 });
 
