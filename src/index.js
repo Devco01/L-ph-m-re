@@ -61,7 +61,7 @@ import {
   handleConfessionReponse,
   handleConfessionLog,
 } from './commands/confession.js';
-import { handleReglement } from './commands/reglement.js';
+import { handleReglement, isReglementButton, handleReglementButton } from './commands/reglement.js';
 
 validateConfig();
 
@@ -329,6 +329,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
     if (interaction.isStringSelectMenu() && isUnwarnSelect(interaction.customId)) {
       await handleUnwarnSelect(interaction);
+      return;
+    }
+
+    if (interaction.isButton() && isReglementButton(interaction.customId)) {
+      await handleReglementButton(interaction);
       return;
     }
 
