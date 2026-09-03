@@ -10,9 +10,8 @@ import {
 } from 'discord.js';
 import { COLOR_OTHER, getBotAuthor, getBotFooter } from '../embeds.js';
 import { canCloseTicket } from '../permissions.js';
+import { config } from '../config.js';
 
-const SAKURA = '<:CZsakurablossom:1542146100180418610>';
-const MEMBER_ROLE_ID = (process.env.REGLEMENT_MEMBER_ROLE_ID || '1542149474200326174').trim();
 const REGLEMENT_ACCEPT_BUTTON_ID = 'reglement_accept';
 
 function barParagraph(...lines) {
@@ -22,8 +21,9 @@ function barParagraph(...lines) {
 }
 
 function buildReglementEmbed(client) {
+  const sakura = config.reglementSakuraEmoji;
   const description = [
-    `${SAKURA} **__Bienvenue sur Chill Zoneˢᶠᵂ | FR__** ${SAKURA}`,
+    `${sakura} **__Bienvenue sur Chill Zoneˢᶠᵂ | FR__** ${sakura}`,
     '',
     'Afin de préserver un espace chill, convivial, bienveillant et sécurisé, merci de prendre connaissance du règlement avant de participer à la vie du serveur.',
     '',
@@ -192,14 +192,21 @@ export async function handleReglementButton(interaction) {
     return interaction.reply({ content: '❌ Impossible de récupérer ton profil membre.', flags: MessageFlags.Ephemeral });
   }
 
-  if (member.roles.cache.has(MEMBER_ROLE_ID)) {
+  if (!config.reglementMemberRoleId) {
+    return interaction.reply({
+      content: '❌ Rôle membre non configuré (`REGLEMENT_MEMBER_ROLE_ID`).',
+      flags: MessageFlags.Ephemeral,
+    });
+  }
+
+  if (member.roles.cache.has(config.reglementMemberRoleId)) {
     return interaction.reply({
       content: '✅ Tu as déjà accepté le règlement.',
       flags: MessageFlags.Ephemeral,
     });
   }
 
-  const role = guild.roles.cache.get(MEMBER_ROLE_ID) ?? (await guild.roles.fetch(MEMBER_ROLE_ID).catch(() => null));
+  const role = guild.roles.cache.get(config.reglementMemberRoleId) ?? (await guild.roles.fetch(config.reglementMemberRoleId).catch(() => null));
   if (!role) {
     return interaction.reply({
       content: '❌ Le rôle membre est introuvable. Préviens un administrateur.',

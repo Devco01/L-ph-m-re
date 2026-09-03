@@ -4,13 +4,10 @@ import { config } from './config.js';
 const MEDIA_ATTACHMENT_EXT = /\.(png|jpe?g|gif|webp|bmp|heic|heif|mp4|mov|webm)$/i;
 const recentlyHandled = new Set();
 
-/** Ordre imposé : orange, néon, slay, étoile (noms Discord réels). */
-const SELFIE_REACTION_IDS = [
-  '1541764065091780669', // orangeheart
-  '1541763149538131978', // orangeneonheart
-  '1541763451741802507', // slay
-  '1541786113188962314', // orangestar
-];
+/** Ordre : orange, néon, slay, étoile (IDs via SELFIE_REACTION_IDS). */
+function selfieReactionList() {
+  return config.selfieReactionIds || [];
+}
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -39,10 +36,6 @@ function parseReactionIdentifier(raw) {
   if (parsed?.id) return { id: parsed.id, animated: Boolean(parsed.animated) };
   if (/^\d{17,20}$/.test(s)) return { id: s, animated: false };
   return s;
-}
-
-function selfieReactionList() {
-  return SELFIE_REACTION_IDS;
 }
 
 function messageHasImage(message) {

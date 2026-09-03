@@ -58,24 +58,35 @@ function parsePresentationReactions() {
 }
 
 function parsePresentationResetChannelIds() {
-  const raw = process.env.PRESENTATION_RESET_CHANNEL_IDS || process.env.PRESENTATION_CHANNEL_ID || '1542091635372990484';
+  const raw = process.env.PRESENTATION_RESET_CHANNEL_IDS || process.env.PRESENTATION_CHANNEL_ID || '';
   return new Set(parseCsvList(raw));
 }
 
 function parseSelfieChannelIds() {
-  const defaults = ['1542091567379259482', '1542107996169961533'];
-  const extra = parseCsvList(process.env.SELFIE_CHANNEL_IDS || '');
-  return new Set([...defaults, ...extra]);
+  return new Set(parseCsvList(process.env.SELFIE_CHANNEL_IDS || ''));
 }
 
-function parseSelfieReactions() {
-  const fallback = [
-    'https://cdn.discordapp.com/emojis/1541764065091780669.webp?size=44',
-    'https://cdn.discordapp.com/emojis/1541763149538131978.webp?size=44',
-    'https://cdn.discordapp.com/emojis/1541763451741802507.webp?size=44',
-    'https://cdn.discordapp.com/emojis/1541786113188962314.webp?size=44',
-  ].join(',');
-  return parseCsvList(process.env.SELFIE_REACTIONS || fallback);
+function extractSnowflake(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return null;
+  const fromCdn = s.match(/emojis\/(\d{17,20})/i);
+  if (fromCdn) return fromCdn[1];
+  const fromMention = s.match(/:(\d{17,20})>/);
+  if (fromMention) return fromMention[1];
+  if (/^\d{17,20}$/.test(s)) return s;
+  return null;
+}
+
+function parseSelfieReactionIds() {
+  const fromIds = parseCsvList(process.env.SELFIE_REACTION_IDS || '');
+  const fromUrls = parseCsvList(process.env.SELFIE_REACTIONS || '');
+  const list = (fromIds.length ? fromIds : fromUrls).map(extractSnowflake).filter(Boolean);
+  return list;
+}
+
+function envId(key) {
+  const v = (process.env[key] || '').trim();
+  return v || null;
 }
 
 function parsePresentationResetMinBulk() {
@@ -99,15 +110,19 @@ export const config = {
   presentationReactions: parsePresentationReactions(),
   presentationResetChannelIds: parsePresentationResetChannelIds(),
   presentationResetMinBulk: parsePresentationResetMinBulk(),
-  presentationChannelId: (process.env.PRESENTATION_CHANNEL_ID || '1542091635372990484').trim() || null,
+  presentationChannelId: envId('PRESENTATION_CHANNEL_ID'),
   selfieChannelIds: parseSelfieChannelIds(),
-  selfieReactions: parseSelfieReactions(),
+  selfieReactionIds: parseSelfieReactionIds(),
   ticketStaffRoleIds: parseCsvList(process.env.TICKET_STAFF_ROLE_IDS || ''),
-  ticketChannelId: (process.env.TICKET_CHANNEL_ID || '').trim() || null,
+  ticketChannelId: envId('TICKET_CHANNEL_ID'),
   /** Salon des transcripts (tickets fermés). */
-  ticketTranscriptChannelId: (process.env.TICKET_TRANSCRIPT_CHANNEL_ID || '1541798701872316496').trim() || null,
+  ticketTranscriptChannelId: envId('TICKET_TRANSCRIPT_CHANNEL_ID'),
   /** Salon où poster l’embed de signalement après un ban. */
-  banLogChannelId: (process.env.BAN_LOG_CHANNEL_ID || '1541771698888646696').trim() || null,
+  banLogChannelId: envId('BAN_LOG_CHANNEL_ID'),
+  /** Rôle donné via le bouton « Lu et approuvé » du règlement. */
+  reglementMemberRoleId: envId('REGLEMENT_MEMBER_ROLE_ID'),
+  /** Emoji du titre du règlement (`<:nom:id>` ou unicode). */
+  reglementSakuraEmoji: envId('REGLEMENT_SAKURA_EMOJI') || '🌸',
 };
 
 export function validateConfig() {
