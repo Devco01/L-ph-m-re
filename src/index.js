@@ -1,4 +1,4 @@
-import { ActivityType, Client, Events, GatewayIntentBits, REST, Routes, MessageFlags, Options, AuditLogEvent } from 'discord.js';
+import { Client, Events, GatewayIntentBits, REST, Routes, MessageFlags, Options, AuditLogEvent } from 'discord.js';
 import os from 'os';
 import { config, validateConfig } from './config.js';
 import { startRateLimitCleanup, stopRateLimitCleanup } from './rateLimit.js';
@@ -236,7 +236,7 @@ client.once(Events.ClientReady, async (c) => {
   try {
     await c.user.setPresence({
       status: 'online',
-      activities: [{ name: "L'éphémère", type: ActivityType.Watching }],
+      activities: [],
     });
   } catch (e) {
     console.warn("[L'éphémère] Définition de la présence impossible:", e?.message || e);
