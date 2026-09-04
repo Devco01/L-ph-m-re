@@ -271,7 +271,7 @@ function buildModalIdentite1(token, session) {
       withPrefill(new TextInputBuilder().setCustomId('age').setLabel('Âge').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(16), ident.age, 16)
     ),
     new ActionRowBuilder().addComponents(
-      withPrefill(new TextInputBuilder().setCustomId('localisation').setLabel('Localisation (pays/ville/région)').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(64), ident.localisation, 64)
+      withPrefill(new TextInputBuilder().setCustomId('localisation').setLabel('Région').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(64), ident.localisation, 64)
     ),
     new ActionRowBuilder().addComponents(
       withPrefill(new TextInputBuilder().setCustomId('genre').setLabel('Genre').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(32), ident.genre, 32)
@@ -365,7 +365,7 @@ function buildFinalPresentationEmbed(interaction, session) {
   const SEP = '┈┈୨୧┈┈୨୧┈┈୨୧┈┈';
   const f = (label, val, maxLen) => {
     const v = maxLen ? clampStr(val, maxLen) : val && String(val).trim() ? String(val).trim() : '';
-    return `➤ **${label} :** ${v || '—'}`;
+    return `✦ **${label} :** ${v || '—'}`;
   };
   const ident = session.identite || {};
   const app = session.apparence || {};
@@ -381,7 +381,7 @@ function buildFinalPresentationEmbed(interaction, session) {
         '',
         f('Prénom / Pseudo', ident.pseudo),
         f('Âge', ident.age),
-        f('Localisation', ident.localisation),
+        f('Région', ident.localisation),
         f('Genre', ident.genre),
         f('Orientation', ident.orientation),
         f('Recherche', ident.recherche, PRESENTATION_RECHERCHE_MAX),
@@ -422,27 +422,54 @@ function parseReactionIdentifier(raw) {
   if (/discord\.com\/assets\//i.test(s)) return null;
   const fromCdn = s.match(/emojis\/(\d+)/i);
   if (fromCdn) {
-    const id = fromCdn[1];
-    const animated = /<a:/i.test(s) || /animated=true/i.test(s);
-    return animated ? { id, animated: true } : id;
+    return {
+      id: fromCdn[1],
+      animated: /animated=true/i.test(s) || /<a:/i.test(s),
+    };
   }
   const parsed = parseEmoji(s);
-  if (parsed) return parsed;
-  if (/^\d{17,20}$/.test(s)) return s;
+  if (parsed?.id) return { id: parsed.id, animated: Boolean(parsed.animated) };
+  if (/^\d{17,20}$/.test(s)) return { id: s, animated: false };
   return s;
 }
 
+async function resolveReactEmoji(guild, parsed) {
+  if (!parsed) return null;
+  if (typeof parsed === 'string') return parsed;
+  const id = parsed.id;
+  if (!id) return parsed;
+  let emoji = guild?.emojis?.cache.get(id);
+  if (!emoji && guild?.emojis?.fetch) {
+    try {
+      emoji = await guild.emojis.fetch(id);
+    } catch (_) {
+      try {
+        const all = await guild.emojis.fetch();
+        emoji = all.get(id);
+      } catch (_) {}
+    }
+  }
+  if (emoji) return emoji;
+  return parsed.animated ? `a:${id}` : `_:${id}`;
+}
+
 async function addPresentationPostReactions(message, guild) {
-  const reactions = config.presentationReactions;
-  if (!reactions?.length || !message?.react) return;
+  const reactions = (config.presentationReactions || []).slice(0, 2);
+  if (!reactions.length || !message?.react) return;
   const channel = message.channel;
   const me = guild?.members?.me ?? (guild && channel ? await guild.members.fetchMe().catch(() => null) : null);
-  if (me && channel && !me.permissionsIn(channel).has(PermissionFlagsBits.AddReactions)) return;
-  for (const raw of reactions) {
+  if (me && channel && !me.permissionsIn(channel).has(PermissionFlagsBits.AddReactions)) {
+    console.warn(`[L'éphémère] présentation: permission « Ajouter des réactions » manquante sur ${channel.id}.`);
+    return;
+  }
+  for (let i = 0; i < reactions.length; i++) {
+    const raw = reactions[i];
     try {
-      const emoji = parseReactionIdentifier(raw);
+      const parsed = parseReactionIdentifier(raw);
+      const emoji = await resolveReactEmoji(guild, parsed);
       if (!emoji) continue;
       await message.react(emoji);
+      if (i < reactions.length - 1) await new Promise((r) => setTimeout(r, 400));
     } catch (e) {
       console.warn(`[L'éphémère] présentation réaction « ${raw} » impossible:`, e?.message || e);
     }

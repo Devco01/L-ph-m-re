@@ -17,46 +17,40 @@ const REGLEMENT_ACCEPT_BUTTON_ID = 'reglement_accept';
 function barParagraph(...lines) {
   if (!lines.length) return '';
   const [first, ...rest] = lines;
-  return [`✦ ${first}`, ...rest].join('\n');
+  return [`✦ ${first}`, '', ...rest].join('\n');
 }
 
-function buildReglementEmbed(client) {
+function joinRules(rules) {
+  return rules.join('\n\n');
+}
+
+function buildReglementEmbeds(client) {
   const sakura = config.reglementSakuraEmoji;
-  const description = [
-    `${sakura} **__Bienvenue sur Chill Zoneˢᶠᵂ | FR__** ${sakura}`,
-    '',
-    'Afin de préserver un espace chill, convivial, bienveillant et sécurisé, merci de prendre connaissance du règlement avant de participer à la vie du serveur.',
-    '',
+  const rules = [
     barParagraph(
       '1. 🔒 Serveur 100 % SFW :',
       'Ce serveur est exclusivement SFW. Tout contenu à caractère sexuel ou pornographique; illégal; gore; extrêmement violent; est strictement interdit. Tout contenu de ce type sera supprimé immédiatement et entraînera un ban définitif, sans avertissement préalable.'
     ),
-    '',
     barParagraph(
       '2. 👶 Âge minimum :',
       'Les membres âgés de 15 à 17 ans sont autorisés sur le serveur. Les personnes ayant moins de 15 ans ne sont pas autorisées à rejoindre la communauté. L’âge minimum requis pour utiliser Discord en France est de 15 ans. Merci de respecter cette limite d’âge.'
     ),
-    '',
     barParagraph(
       '3. 🛡️ Vérification de l’âge & protection des mineurs :',
-      'Afin de garantir un environnement sécurisé pour notre population la plus jeune, les personnes âgées de plus de 40 ans ne sont pas autorisées sur le serveur. En cas de doute concernant l’âge déclaré d’un membre, la modération se réserve le droit de vous convoquer en entretien afin de procéder à une vérification d’âge. Cette vérification pourra être demandée notamment lorsqu’un profil, un comportement ou des informations fournies semblent incohérents avec l’âge déclaré. Un refus de coopérer à une vérification d’âge pourra entraîner une exclusion temporaire ou définitive du serveur.'
+      'Afin de garantir un environnement sécurisé pour notre population la plus jeune, les personnes âgées de plus de 40 ans ne sont pas autorisées sur le serveur. En cas de doute concernant l’âge déclaré d’un membre, la modération se réserve le droit de vous convoquer en entretien afin de procéder à une vérification d’âge. Cette vérification pourra être demandée notamment lorsqu’un profil, un comportement ou des informations fournies semblent incohérents avec l’âge déclaré. Un refus de coopérer à une vérification d’âge pourra entraîner une exclusion définitive du serveur.'
     ),
-    '',
     barParagraph(
       '4. 🚨 Protection des mineurs & comportements inappropriés :',
       'Toute personne ayant des comportements de « pointeur » envers des mineurs sera bannie définitivement. Il est strictement interdit d’entretenir ou de rechercher une relation sexuelle et/ou amoureuse avec un(e) mineur(e). Si vous êtes témoin d’un comportement qui vous semble inapproprié, prédateur, manipulateur ou suspect envers un mineur, merci de le signaler immédiatement à la modération.'
     ),
-    '',
     barParagraph(
       '5. 🏷️ Utilisation des salons :',
       'Merci de respecter l’utilisation prévue pour chaque salon. Postez vos messages dans les salons appropriés et évitez le hors sujet lorsque celui-ci n’est pas autorisé.'
     ),
-    '',
     barParagraph(
       '6. 🎫 Tickets :',
       'Lorsque vous ouvrez un ticket auprès de la modération, merci de rester réactif et disponible. Nous faisons notre maximum pour vous répondre rapidement; nous vous demandons donc d’en faire de même. Un ticket resté sans réponse pendant plus de 24 heures entraînera un warn.'
     ),
-    '',
     barParagraph(
       '7. 🚫 Respect & tolérance :',
       'Aucun comportement discriminatoire ou haineux ne sera toléré.',
@@ -70,20 +64,37 @@ function buildReglementEmbed(client) {
       '❌ Toute forme de discrimination ou de haine.',
       'Tout comportement grave entraînera un ban immédiat et définitif, sans avertissement.'
     ),
-    '',
     barParagraph(
       '8. 🌿 Le mot d’ordre : bienveillance',
       'Chill Zoneˢᶠᵂ | FR est avant tout un espace où chacun doit pouvoir se sentir à l’aise, respecté et en sécurité. Soyez respectueux envers les autres membres, la modération et vous-même. En cas de conflit ou de situation problématique, privilégiez le dialogue et faites appel à la modération.'
     ),
-    '',
-    `🌸 En rejoignant **__Chill Zoneˢᶠᵂ | FR__**, vous acceptez l’intégralité de ce règlement.`,
-  ].join('\n');
+  ];
 
-  return new EmbedBuilder()
+  const first = new EmbedBuilder()
     .setColor(COLOR_OTHER)
     .setAuthor(getBotAuthor(client))
-    .setDescription(description)
+    .setDescription(
+      [
+        `${sakura} **__Bienvenue sur Chill Zoneˢᶠᵂ | FR__** ${sakura}`,
+        '',
+        'Afin de préserver un espace chill, convivial, bienveillant et sécurisé, merci de prendre connaissance du règlement avant de participer à la vie du serveur.',
+        '',
+        joinRules(rules.slice(0, 4)),
+      ].join('\n')
+    );
+
+  const second = new EmbedBuilder()
+    .setColor(COLOR_OTHER)
+    .setDescription(
+      [
+        joinRules(rules.slice(4)),
+        '',
+        `🌸 En rejoignant **__Chill Zoneˢᶠᵂ | FR__**, vous acceptez l’intégralité de ce règlement.`,
+      ].join('\n')
+    )
     .setFooter(getBotFooter(client, { extra: 'Règlement' }));
+
+  return [first, second];
 }
 
 function buildReglementButtons() {
@@ -160,7 +171,7 @@ export async function handleReglement(interaction) {
 
   try {
     await channel.send({
-      embeds: [buildReglementEmbed(interaction.client)],
+      embeds: buildReglementEmbeds(interaction.client),
       components: [buildReglementButtons()],
       allowedMentions: { parse: [] },
     });

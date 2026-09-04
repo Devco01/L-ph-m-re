@@ -261,6 +261,12 @@ client.once(Events.ClientReady, async (c) => {
   } else {
     console.log("[L'éphémère] Intent Message Content désactivé. Les preuves images/fichiers sont enregistrées, pas le texte.");
   }
+  const selfieIds = [...(config.selfieChannelIds || [])];
+  if (selfieIds.length) {
+    console.log(`[L'éphémère] Selfies / OOTD actifs sur ${selfieIds.length} salon(s): ${selfieIds.join(', ')}`);
+  } else {
+    console.warn("[L'éphémère] Selfies / OOTD inactifs: SELFIE_CHANNEL_IDS est vide dans le .env.");
+  }
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {

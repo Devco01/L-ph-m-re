@@ -54,7 +54,8 @@ function parsePresentationReactions() {
     (process.env.PRESENTATION_REACTION_1 || '').trim(),
     (process.env.PRESENTATION_REACTION_2 || '').trim(),
   ].filter(Boolean);
-  return list.slice(0, 2);
+  if (list.length) return list.slice(0, 2);
+  return parseSelfieReactionIds().slice(0, 2);
 }
 
 function parsePresentationResetChannelIds() {
