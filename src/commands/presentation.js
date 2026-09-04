@@ -198,9 +198,9 @@ function buildPresentationPanelEmbed(interaction, session) {
       [
         `Utilisateur : <@${session.userId}>`,
         '',
-        `- Identité : ${doneKeys(session.identite, ['pseudo', 'age', 'localisation', 'genre', 'orientation', 'recherche', 'situation']) ? '✅' : '⏳'}`,
-        `- Apparence : ${doneKeys(session.apparence, ['taille', 'poids', 'yeux', 'cheveux', 'tatouages', 'style']) ? '✅' : '⏳'}`,
-        `- À propos : ${doneKeys(session.apropos, ['aime', 'deteste', 'positifs', 'negatifs', 'passions', 'dm']) ? '✅' : '⏳'}`,
+        `- 🌈 Identité : ${doneKeys(session.identite, ['pseudo', 'age', 'localisation', 'genre', 'orientation', 'recherche', 'situation']) ? '✅' : '⏳'}`,
+        `- 👘 Apparence : ${doneKeys(session.apparence, ['taille', 'poids', 'yeux', 'cheveux', 'tatouages', 'style']) ? '✅' : '⏳'}`,
+        `- ✍🏼 À propos : ${doneKeys(session.apropos, ['aime', 'deteste', 'positifs', 'negatifs', 'passions', 'dm']) ? '✅' : '⏳'}`,
         '',
         'Clique sur **Commencer** puis suis les étapes jusqu’à **Finaliser**.',
       ].join('\n')

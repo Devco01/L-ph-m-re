@@ -59,6 +59,15 @@ export const TICKET_TYPES = [
     title: '✅ - Certification',
     buttonStyle: ButtonStyle.Success,
   },
+  {
+    id: 'partenariat',
+    label: 'Partenariat',
+    emoji: '\u{1FAF1}\u{1F3FC}\u{200D}\u{1FAF2}\u{1F3FB}',
+    blurb: 'uniquement après lecture des modalités',
+    threadPrefix: 'Partenariat',
+    title: '\u{1FAF1}\u{1F3FC}\u{200D}\u{1FAF2}\u{1F3FB} - Partenariat',
+    buttonStyle: ButtonStyle.Primary,
+  },
 ];
 
 function getTicketType(id) {
@@ -201,6 +210,10 @@ function buildTicketEmbed({ client, userId, type, subject, claimedBy = null, clo
 }
 
 function buildPanelEmbed(client) {
+  const handshake = '\u{1FAF1}\u{1F3FC}\u{200D}\u{1FAF2}\u{1F3FB}';
+  const modalites = config.ticketPartenariatModalitesChannelId
+    ? `<#${config.ticketPartenariatModalitesChannelId}>`
+    : '📓┃modalités';
   return new EmbedBuilder()
     .setColor(COLOR_OTHER)
     .setAuthor(getBotAuthor(client))
@@ -212,6 +225,7 @@ function buildPanelEmbed(client) {
         '🚨 **Signalement** — signaler un membre, un comportement ou un problème',
         '💬 **Aide** — questions, soucis de permissions ou signalement d’un bug',
         '✅ **Certification** — vérification de ton âge et de l’authenticité de ton compte',
+        `${handshake} **Demande de partenariat** : uniquement après avoir pris connaissance de nos modalités au préalable : cf. ${modalites}`,
         '',
         '📌 **À savoir :**',
         '• Sois clair et précis dès ton premier message.',

@@ -106,6 +106,8 @@ export const config = {
   ticketChannelId: envId('TICKET_CHANNEL_ID'),
   /** Salon des transcripts (tickets fermés). */
   ticketTranscriptChannelId: envId('TICKET_TRANSCRIPT_CHANNEL_ID'),
+  /** Salon des modalités (lien cliquable sur le bouton partenariat). */
+  ticketPartenariatModalitesChannelId: envId('TICKET_PARTENARIAT_MODALITES_CHANNEL_ID'),
   /** Salon où poster l’embed de signalement après un ban. */
   banLogChannelId: envId('BAN_LOG_CHANNEL_ID'),
   /** Rôle donné via le bouton « Lu et approuvé » du règlement. */
