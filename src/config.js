@@ -66,22 +66,10 @@ function parseSelfieChannelIds() {
   return new Set(parseCsvList(process.env.SELFIE_CHANNEL_IDS || ''));
 }
 
-function extractSnowflake(raw) {
-  const s = String(raw || '').trim();
-  if (!s) return null;
-  const fromCdn = s.match(/emojis\/(\d{17,20})/i);
-  if (fromCdn) return fromCdn[1];
-  const fromMention = s.match(/:(\d{17,20})>/);
-  if (fromMention) return fromMention[1];
-  if (/^\d{17,20}$/.test(s)) return s;
-  return null;
-}
-
 function parseSelfieReactionIds() {
   const fromIds = parseCsvList(process.env.SELFIE_REACTION_IDS || '');
   const fromUrls = parseCsvList(process.env.SELFIE_REACTIONS || '');
-  const list = (fromIds.length ? fromIds : fromUrls).map(extractSnowflake).filter(Boolean);
-  return list;
+  return fromIds.length ? fromIds : fromUrls;
 }
 
 function envId(key) {

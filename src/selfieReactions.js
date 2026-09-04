@@ -4,7 +4,7 @@ import { config } from './config.js';
 const MEDIA_ATTACHMENT_EXT = /\.(png|jpe?g|gif|webp|bmp|heic|heif|mp4|mov|webm)$/i;
 const recentlyHandled = new Set();
 
-/** Ordre : orange, néon, slay, étoile (IDs via SELFIE_REACTION_IDS). */
+/** Ordre des réactions auto (IDs ou URL CDN, y compris animated=true). */
 function selfieReactionList() {
   return config.selfieReactionIds || [];
 }
