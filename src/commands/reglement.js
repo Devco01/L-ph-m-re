@@ -17,7 +17,7 @@ const REGLEMENT_ACCEPT_BUTTON_ID = 'reglement_accept';
 function barParagraph(...lines) {
   if (!lines.length) return '';
   const [first, ...rest] = lines;
-  return [`✦ ${first}`, '', ...rest].join('\n');
+  return [`✦ **__${first}__**`, '', ...rest].join('\n');
 }
 
 function joinRules(rules) {

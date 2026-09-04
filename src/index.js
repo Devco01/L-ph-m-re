@@ -1,5 +1,7 @@
 import { Client, Events, GatewayIntentBits, REST, Routes, MessageFlags, Options, AuditLogEvent } from 'discord.js';
+import fs from 'fs';
 import os from 'os';
+import path from 'path';
 import { config, validateConfig } from './config.js';
 import { startRateLimitCleanup, stopRateLimitCleanup } from './rateLimit.js';
 import {
@@ -70,8 +72,40 @@ const instanceOwner = (process.env.EPHEMERE_INSTANCE_OWNER || os.hostname()).tri
 const INSTANCE_LOCK_KEY = (process.env.EPHEMERE_INSTANCE_LOCK_KEY || 'ephemere-main').trim() || 'ephemere-main';
 const DISABLE_INSTANCE_LOCK = /^(1|true|yes|on)$/i.test(String(process.env.EPHEMERE_DISABLE_INSTANCE_LOCK || '').trim());
 const INSTANCE_LOCK_TTL_MS = 90_000;
+const AVATAR_SYNC_PATH = path.join(process.cwd(), 'data', 'avatar-sync.json');
 let instanceLockHeartbeat = null;
 let hasInstanceLock = false;
+
+async function syncBotAvatarWithGuild(client) {
+  const guild = (config.guildId && client.guilds.cache.get(config.guildId)) || client.guilds.cache.first();
+  if (!guild) {
+    console.warn("[L'éphémère] Avatar: aucun serveur pour copier l’icône.");
+    return;
+  }
+  if (!guild.icon) {
+    console.warn("[L'éphémère] Avatar: le serveur n’a pas d’icône.");
+    return;
+  }
+
+  let last = {};
+  try {
+    last = JSON.parse(fs.readFileSync(AVATAR_SYNC_PATH, 'utf8'));
+  } catch (_) {}
+
+  if (last.guildId === guild.id && last.iconHash === guild.icon) return;
+
+  const iconURL = guild.iconURL({ size: 256 });
+  if (!iconURL) return;
+
+  try {
+    await client.user.setAvatar(iconURL);
+    fs.mkdirSync(path.dirname(AVATAR_SYNC_PATH), { recursive: true });
+    fs.writeFileSync(AVATAR_SYNC_PATH, JSON.stringify({ guildId: guild.id, iconHash: guild.icon }));
+    console.log("[L'éphémère] Photo de profil alignée sur l’icône du serveur.");
+  } catch (e) {
+    console.warn("[L'éphémère] Changement de photo de profil impossible:", e?.message || e);
+  }
+}
 
 async function safeReleaseInstanceLock(reason) {
   if (DISABLE_INSTANCE_LOCK || !hasInstanceLock) return;
@@ -240,6 +274,12 @@ client.once(Events.ClientReady, async (c) => {
     });
   } catch (e) {
     console.warn("[L'éphémère] Définition de la présence impossible:", e?.message || e);
+  }
+
+  try {
+    await syncBotAvatarWithGuild(c);
+  } catch (e) {
+    console.warn("[L'éphémère] Synchronisation de l’avatar impossible:", e?.message || e);
   }
 
   startRateLimitCleanup();

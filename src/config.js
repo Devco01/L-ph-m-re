@@ -95,7 +95,7 @@ export const config = {
   /** Embeds de sanctions (ban, warn, unban, unwarn). */
   embedColorSanction: parseHexColor(process.env.EMBED_COLOR_SANCTION || process.env.DISCORD_EMBED_COLOR_SANCTION, 0xef233c),
   /** Embeds hors sanctions (présentation, tickets, analyse). */
-  embedColorOther: parseHexColor(process.env.EMBED_COLOR_OTHER || process.env.DISCORD_EMBED_COLOR_OTHER, 0xf4acb7),
+  embedColorOther: parseHexColor(process.env.EMBED_COLOR_OTHER || process.env.DISCORD_EMBED_COLOR_OTHER, 0xf6b3ce),
   presentationReactions: parsePresentationReactions(),
   presentationResetChannelIds: parsePresentationResetChannelIds(),
   presentationResetMinBulk: parsePresentationResetMinBulk(),
