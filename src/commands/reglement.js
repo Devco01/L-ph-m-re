@@ -14,10 +14,16 @@ import { config } from '../config.js';
 
 const REGLEMENT_ACCEPT_BUTTON_ID = 'reglement_accept';
 
+function formatRuleTitle(title) {
+  const m = String(title).match(/^(\d+\.\s+\S+\s+)(.+)$/);
+  if (!m) return `✦ **__${title}__**`;
+  return `✦ ${m[1]}**__${m[2]}__**`;
+}
+
 function barParagraph(...lines) {
   if (!lines.length) return '';
   const [first, ...rest] = lines;
-  return [`✦ **__${first}__**`, '', ...rest].join('\n');
+  return [formatRuleTitle(first), '', ...rest].join('\n');
 }
 
 function joinRules(rules) {
