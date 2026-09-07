@@ -119,6 +119,9 @@ export const config = {
   reglementMemberRoleId: envId('REGLEMENT_MEMBER_ROLE_ID'),
   /** Emoji du titre du règlement (`<:nom:id>` ou unicode). */
   reglementSakuraEmoji: envId('REGLEMENT_SAKURA_EMOJI') || '🌸',
+  infoChannelId: envId('INFO_CHANNEL_ID'),
+  infoLevel1RoleId: envId('INFO_LEVEL_1_ROLE_ID'),
+  infoLevel5RoleId: envId('INFO_LEVEL_5_ROLE_ID'),
 };
 
 export function validateConfig() {

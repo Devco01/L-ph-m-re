@@ -17,7 +17,6 @@ import { config } from '../config.js';
 import {
   createTicket,
   getTicketByThreadId,
-  getOpenTicketForUser,
   claimTicket,
   closeTicket,
   setTicketPanel,
@@ -63,6 +62,7 @@ export const TICKET_TYPES = [
     id: 'partenariat',
     label: 'Partenariat',
     emoji: '\u{1FAF1}\u{1F3FC}\u{200D}\u{1FAF2}\u{1F3FB}',
+    buttonEmoji: '🤝',
     blurb: 'uniquement après lecture des modalités',
     threadPrefix: 'Partenariat',
     title: '\u{1FAF1}\u{1F3FC}\u{200D}\u{1FAF2}\u{1F3FB} - Partenariat',
@@ -165,6 +165,47 @@ function sanitizeThreadNamePart(name) {
     .slice(0, 40) || 'membre';
 }
 
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function ensureTicketChannelMemberAccess(channel, guild) {
+  const allow = {
+    ViewChannel: true,
+    ReadMessageHistory: true,
+    UseApplicationCommands: true,
+    SendMessagesInThreads: true,
+  };
+  const targets = [guild.roles.everyone];
+  if (config.reglementMemberRoleId) {
+    const role =
+      guild.roles.cache.get(config.reglementMemberRoleId) ||
+      (await guild.roles.fetch(config.reglementMemberRoleId).catch(() => null));
+    if (role) targets.push(role);
+  }
+  for (const target of targets) {
+    try {
+      await channel.permissionOverwrites.edit(target, allow, { reason: 'Permettre aux membres d’ouvrir des tickets' });
+    } catch (err) {
+      console.warn(`[L'éphémère] tickets overwrite ${target.id}:`, err?.message || err);
+    }
+  }
+}
+
+async function addMemberToTicketThread(thread, userId) {
+  for (let i = 0; i < 4; i++) {
+    try {
+      await thread.members.add(userId);
+      const has = thread.members.cache.has(userId) || (await thread.members.fetch(userId).then(() => true).catch(() => false));
+      if (has) return true;
+    } catch (err) {
+      console.warn(`[L'éphémère] Ajout membre au ticket (essai ${i + 1}):`, err?.message || err);
+    }
+    await wait(350 * (i + 1));
+  }
+  return false;
+}
+
 function staffPingContent() {
   const ids = config.ticketStaffRoleIds;
   if (!ids.length) return null;
@@ -229,7 +270,6 @@ function buildPanelEmbed(client) {
         '',
         '📌 **À savoir :**',
         '• Sois clair et précis dès ton premier message.',
-        '• Un seul ticket ouvert à la fois.',
         '• Un ticket resté sans réponse pendant plus de 24 heures fera l’objet d’un warn.',
         '• La certification s’effectue uniquement par vérification en caméra + CNI.',
         '',
@@ -246,7 +286,7 @@ function buildPanelButtons() {
       new ButtonBuilder()
         .setCustomId(`ticket_open_${t.id}`)
         .setLabel(t.label)
-        .setEmoji(t.emoji)
+        .setEmoji(t.buttonEmoji || t.emoji)
         .setStyle(t.buttonStyle)
     )
   );
@@ -288,16 +328,8 @@ export function isTicketButton(customId) {
 
 async function showTicketSubjectModal(interaction, typeId) {
   const meta = getTicketType(typeId);
-  if (!interaction.guild) {
+  if (!interaction.guild && !interaction.guildId) {
     return interaction.reply({ content: '❌ Utilisable uniquement sur un serveur.', flags: MessageFlags.Ephemeral });
-  }
-
-  const existing = await getOpenTicketForUser(interaction.guild.id, interaction.user.id);
-  if (existing) {
-    return interaction.reply({
-      content: `❌ Tu as déjà un ticket ouvert : <#${existing.thread_id}>. Ferme-le avant d’en ouvrir un autre.`,
-      flags: MessageFlags.Ephemeral,
-    });
   }
 
   const modal = new ModalBuilder().setCustomId(`ticket_modal_${meta.id}`).setTitle(`${meta.label} — sujet`);
@@ -313,11 +345,24 @@ async function showTicketSubjectModal(interaction, typeId) {
         .setPlaceholder('Décris brièvement le motif…')
     )
   );
-  return interaction.showModal(modal);
+  try {
+    await interaction.showModal(modal);
+  } catch (err) {
+    console.error(`[L'éphémère] Ticket showModal (${meta.id}):`, err?.message || err);
+    if (!interaction.replied && !interaction.deferred) {
+      return interaction
+        .reply({
+          content: '❌ Impossible d’ouvrir le formulaire. Réessaie dans un instant.',
+          flags: MessageFlags.Ephemeral,
+        })
+        .catch(() => {});
+    }
+  }
 }
 
 export async function handleTicketOpenButton(interaction) {
   const typeId = String(interaction.customId || '').replace('ticket_open_', '');
+  console.log(`[L'éphémère] Ticket bouton: ${typeId} user=${interaction.user?.id}`);
   return showTicketSubjectModal(interaction, typeId);
 }
 
@@ -359,6 +404,8 @@ export async function handleTicketPanel(interaction) {
     });
   }
 
+  await ensureTicketChannelMemberAccess(channel, interaction.guild);
+
   const msg = await channel.send({
     embeds: [buildPanelEmbed(interaction.client)],
     components: [buildPanelButtons()],
@@ -376,7 +423,9 @@ export async function handleTicketPanel(interaction) {
 export async function handleTicketModalSubmit(interaction) {
   const typeId = String(interaction.customId || '').replace('ticket_modal_', '');
   const meta = getTicketType(typeId);
-  const guild = interaction.guild;
+  const guild =
+    interaction.guild ||
+    (interaction.guildId ? await interaction.client.guilds.fetch(interaction.guildId).catch(() => null) : null);
   if (!guild) {
     return interaction.reply({ content: '❌ Utilisable uniquement sur un serveur.', flags: MessageFlags.Ephemeral });
   }
@@ -385,13 +434,6 @@ export async function handleTicketModalSubmit(interaction) {
 
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-  const existing = await getOpenTicketForUser(guild.id, interaction.user.id);
-  if (existing) {
-    return interaction.editReply({
-      content: `❌ Tu as déjà un ticket ouvert : <#${existing.thread_id}>.`,
-    });
-  }
-
   const parentId = config.ticketChannelId || interaction.channelId;
   const parent = await interaction.client.channels.fetch(parentId).catch(() => null);
   if (!parent || !parent.isTextBased?.() || parent.isThread?.() || parent.type === ChannelType.DM) {
@@ -399,6 +441,8 @@ export async function handleTicketModalSubmit(interaction) {
       content: '❌ Salon tickets introuvable. Un staff doit relancer `/ticket-panel` dans le salon `#ticket`.',
     });
   }
+
+  await ensureTicketChannelMemberAccess(parent, guild);
 
   const username = sanitizeThreadNamePart(interaction.user.username || interaction.user.globalName || interaction.user.id);
   const threadName = `${meta.threadPrefix}-${username}`.slice(0, 100);
@@ -414,16 +458,18 @@ export async function handleTicketModalSubmit(interaction) {
     });
   } catch (err) {
     console.error("[L'éphémère] Création thread ticket:", err?.message || err);
+    const code = err?.code ?? err?.rawError?.code;
+    const atCap = code === 30033 || /maximum number of active threads/i.test(String(err?.message || ''));
     return interaction.editReply({
-      content:
-        '❌ Impossible de créer le fil privé. Vérifie que le bot a **Créer des fils privés** et **Gérer les fils** dans ce salon.',
+      content: atCap
+        ? '❌ Discord refuse un nouveau fil : la limite de fils actifs du serveur est atteinte. Un staff doit en archiver/fermer.'
+        : '❌ Impossible de créer le fil privé. Vérifie que le bot a **Créer des fils privés** et **Gérer les fils** dans ce salon.',
     });
   }
 
-  try {
-    await thread.members.add(interaction.user.id);
-  } catch (err) {
-    console.warn("[L'éphémère] Ajout membre au ticket:", err?.message || err);
+  const added = await addMemberToTicketThread(thread, interaction.user.id);
+  if (!added) {
+    console.warn(`[L'éphémère] Ticket: membre ${interaction.user.id} non ajouté au fil ${thread.id}`);
   }
 
   const ping = staffPingContent();
@@ -463,7 +509,11 @@ export async function handleTicketModalSubmit(interaction) {
     }
   } catch (_) {}
 
-  return interaction.editReply({ content: `✅ Ticket ouvert : ${thread}` });
+  return interaction.editReply({
+    content: added
+      ? `✅ Ticket ouvert : ${thread}`
+      : `✅ Ticket créé (${thread}) mais je n’ai pas pu t’y ajouter. Un staff va t’ajouter — vérifie que tu vois le salon tickets.`,
+  });
 }
 
 export async function handleTicketButton(interaction) {

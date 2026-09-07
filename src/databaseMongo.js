@@ -303,7 +303,7 @@ export async function getTicketPanel(guildId) {
 }
 
 export async function tryAcquireInteraction(interactionId) {
-  if (!interactionId) return false;
+  if (!interactionId) return true;
   try {
     const r = await db
       .collection('interaction_dedup')
@@ -313,8 +313,10 @@ export async function tryAcquireInteraction(interactionId) {
         { upsert: true }
       );
     return (r?.upsertedCount ?? 0) > 0;
-  } catch (_) {
-    return false;
+  } catch (e) {
+    if (e?.code === 11000) return false;
+    console.warn(`[L'éphémère] Dedup interaction:`, e?.message || e);
+    return true;
   }
 }
 

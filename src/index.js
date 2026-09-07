@@ -65,6 +65,7 @@ import {
   handleConfessionLog,
 } from './commands/confession.js';
 import { handleReglement, isReglementButton, handleReglementButton } from './commands/reglement.js';
+import { handleInformations } from './commands/informations.js';
 
 validateConfig();
 
@@ -327,8 +328,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       return;
     }
   } catch (err) {
-    console.error(`[L'éphémère] Interaction dedup indisponible → ignorée: id=${interaction.id}`, err?.message || err);
-    return;
+    console.error(`[L'éphémère] Interaction dedup indisponible → on continue: id=${interaction.id}`, err?.message || err);
   }
 
   try {
@@ -425,6 +425,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
       case 'reglement':
       case 'règlement':
         await handleReglement(interaction);
+        break;
+      case 'informations':
+        await handleInformations(interaction);
         break;
       default:
         await interaction.reply({ content: 'Commande inconnue.', flags: MessageFlags.Ephemeral });
