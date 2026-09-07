@@ -24,7 +24,7 @@ import {
   getTicketPanel,
 } from '../database.js';
 import { COLOR_OTHER, getBotAuthor, getBotFooter } from '../embeds.js';
-import { hasAdminRole, isStaffMember, canCloseTicket } from '../permissions.js';
+import { isStaffMember, canCloseTicket } from '../permissions.js';
 import { sanitizeReason, formatBanDate } from '../validation.js';
 
 /**
@@ -225,7 +225,7 @@ function buildPanelEmbed(client) {
         '🚨 **Signalement** — signaler un membre, un comportement ou un problème',
         '💬 **Aide** — questions, soucis de permissions ou signalement d’un bug',
         '✅ **Certification** — vérification de ton âge et de l’authenticité de ton compte',
-        `${handshake} **Demande de partenariat** : uniquement après avoir pris connaissance de nos modalités au préalable : cf. ${modalites}`,
+        `${handshake} **Demande de partenariat** — uniquement après avoir pris connaissance de nos modalités au préalable : cf. ${modalites}`,
         '',
         '📌 **À savoir :**',
         '• Sois clair et précis dès ton premier message.',
@@ -253,11 +253,17 @@ function buildPanelButtons() {
 }
 
 export const ticketCommands = [
-  new SlashCommandBuilder()
-    .setName('ticket-panel')
-    .setDescription('Poster le panneau d’ouverture de tickets (fils privés) dans ce salon.')
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels)
-    .toJSON(),
+  (() => {
+    const json = new SlashCommandBuilder()
+      .setName('ticket-panel')
+      .setDescription('Poster le panneau d’ouverture de tickets (fils privés) dans ce salon.')
+      .setDefaultMemberPermissions(0n)
+      .setDMPermission(false)
+      .toJSON();
+    json.default_member_permissions = '0';
+    json.dm_permission = false;
+    return json;
+  })(),
 ];
 
 export function isTicketOpenButton(customId) {
@@ -324,8 +330,11 @@ export async function handleTicketPanel(interaction) {
   if (!interaction.guild) {
     return interaction.reply({ content: '❌ Commande utilisable uniquement sur un serveur.', flags: MessageFlags.Ephemeral });
   }
-  if (!(await hasAdminRole(interaction))) {
-    return interaction.reply({ content: '❌ Tu n’as pas le droit d’utiliser cette commande.', flags: MessageFlags.Ephemeral });
+  if (!(await canCloseTicket(interaction))) {
+    return interaction.reply({
+      content: '❌ Réservé aux **administrateurs** et au **propriétaire** du serveur.',
+      flags: MessageFlags.Ephemeral,
+    });
   }
 
   const channel = interaction.channel;

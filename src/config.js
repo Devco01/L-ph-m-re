@@ -67,6 +67,10 @@ function parseSelfieChannelIds() {
   return new Set(parseCsvList(process.env.SELFIE_CHANNEL_IDS || ''));
 }
 
+function parseAutoThreadChannelIds() {
+  return new Set(parseCsvList(process.env.AUTO_THREAD_CHANNEL_IDS || ''));
+}
+
 function parseSelfieReactionIds() {
   const fromIds = parseCsvList(process.env.SELFIE_REACTION_IDS || '');
   const fromUrls = parseCsvList(process.env.SELFIE_REACTIONS || '');
@@ -102,6 +106,7 @@ export const config = {
   presentationChannelId: envId('PRESENTATION_CHANNEL_ID'),
   selfieChannelIds: parseSelfieChannelIds(),
   selfieReactionIds: parseSelfieReactionIds(),
+  autoThreadChannelIds: parseAutoThreadChannelIds(),
   ticketStaffRoleIds: parseCsvList(process.env.TICKET_STAFF_ROLE_IDS || ''),
   ticketChannelId: envId('TICKET_CHANNEL_ID'),
   /** Salon des transcripts (tickets fermés). */

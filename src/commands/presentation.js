@@ -229,18 +229,8 @@ function buildPresentationFinaliserComponents(token) {
 
 function buildContinueRow(token, nextAction) {
   const stepNumber =
-    nextAction === 'identite_2'
-      ? 1
-      : nextAction === 'apparence_1'
-        ? 2
-        : nextAction === 'apparence_2'
-          ? 3
-          : nextAction === 'apropos_1'
-            ? 4
-            : nextAction === 'apropos_2'
-              ? 5
-              : null;
-  const label = stepNumber ? `Suite ${stepNumber}/5` : 'Suite';
+    nextAction === 'identite_2' ? 1 : nextAction === 'apparence_1' ? 2 : nextAction === 'apropos_1' ? 3 : null;
+  const label = stepNumber ? `Suite ${stepNumber}/3` : 'Suite';
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId(`presentation_continue_${nextAction}_${token}`).setLabel(label).setStyle(ButtonStyle.Secondary)
   );
@@ -261,7 +251,7 @@ function withPrefill(input, value, max) {
 }
 
 function buildModalIdentite1(token, session) {
-  const modal = new ModalBuilder().setCustomId(`${PRESENTATION_MODAL_CUSTOM_ID}_identite_1_${token}`).setTitle('Présentation — Identité (1/2)');
+  const modal = new ModalBuilder().setCustomId(`${PRESENTATION_MODAL_CUSTOM_ID}_identite_1_${token}`).setTitle('Présentation — Identité');
   const ident = session?.identite || {};
   modal.addComponents(
     new ActionRowBuilder().addComponents(
@@ -284,8 +274,9 @@ function buildModalIdentite1(token, session) {
 }
 
 function buildModalIdentite2(token, session) {
-  const modal = new ModalBuilder().setCustomId(`${PRESENTATION_MODAL_CUSTOM_ID}_identite_2_${token}`).setTitle('Présentation — Identité (2/2)');
+  const modal = new ModalBuilder().setCustomId(`${PRESENTATION_MODAL_CUSTOM_ID}_identite_2_${token}`).setTitle('Présentation — Identité / Apparence');
   const ident = session?.identite || {};
+  const app = session?.apparence || {};
   modal.addComponents(
     new ActionRowBuilder().addComponents(
       withPrefill(
@@ -296,33 +287,40 @@ function buildModalIdentite2(token, session) {
     ),
     new ActionRowBuilder().addComponents(
       withPrefill(new TextInputBuilder().setCustomId('situation').setLabel('Situation (célibataire/en couple/etc.)').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(32), ident.situation, 32)
-    )
+    ),
+    new ActionRowBuilder().addComponents(withPrefill(new TextInputBuilder().setCustomId('taille').setLabel('Taille').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(16), app.taille, 16)),
+    new ActionRowBuilder().addComponents(withPrefill(new TextInputBuilder().setCustomId('poids').setLabel('Poids').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(16), app.poids, 16)),
+    new ActionRowBuilder().addComponents(withPrefill(new TextInputBuilder().setCustomId('yeux').setLabel('Couleur des yeux').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(24), app.yeux, 24))
   );
   return modal;
 }
 
 function buildModalApparence1(token, session) {
-  const modal = new ModalBuilder().setCustomId(`${PRESENTATION_MODAL_CUSTOM_ID}_apparence_1_${token}`).setTitle('Présentation — Apparence (1/2)');
+  const modal = new ModalBuilder().setCustomId(`${PRESENTATION_MODAL_CUSTOM_ID}_apparence_1_${token}`).setTitle('Présentation — Apparence / À propos');
   const app = session?.apparence || {};
+  const apro = session?.apropos || {};
   modal.addComponents(
-    new ActionRowBuilder().addComponents(withPrefill(new TextInputBuilder().setCustomId('taille').setLabel('Taille').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(16), app.taille, 16)),
-    new ActionRowBuilder().addComponents(withPrefill(new TextInputBuilder().setCustomId('poids').setLabel('Poids').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(16), app.poids, 16)),
-    new ActionRowBuilder().addComponents(withPrefill(new TextInputBuilder().setCustomId('yeux').setLabel('Couleur des yeux').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(24), app.yeux, 24)),
     new ActionRowBuilder().addComponents(withPrefill(new TextInputBuilder().setCustomId('cheveux').setLabel('Couleur des cheveux').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(24), app.cheveux, 24)),
-    new ActionRowBuilder().addComponents(withPrefill(new TextInputBuilder().setCustomId('tatouages').setLabel('Tatouages et/ou piercings').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(64), app.tatouages, 64))
-  );
-  return modal;
-}
-
-function buildModalApparence2(token, session) {
-  const modal = new ModalBuilder().setCustomId(`${PRESENTATION_MODAL_CUSTOM_ID}_apparence_2_${token}`).setTitle('Présentation — Apparence (2/2)');
-  const app = session?.apparence || {};
-  modal.addComponents(
+    new ActionRowBuilder().addComponents(withPrefill(new TextInputBuilder().setCustomId('tatouages').setLabel('Tatouages et/ou piercings').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(64), app.tatouages, 64)),
     new ActionRowBuilder().addComponents(
       withPrefill(
         new TextInputBuilder().setCustomId('style').setLabel('Style vestimentaire').setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(PRESENTATION_STYLE_MAX),
         app.style,
         PRESENTATION_STYLE_MAX
+      )
+    ),
+    new ActionRowBuilder().addComponents(
+      withPrefill(
+        new TextInputBuilder().setCustomId('aime').setLabel('Aime').setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(PRESENTATION_APROPOS_TEXT_MAX),
+        apro.aime,
+        PRESENTATION_APROPOS_TEXT_MAX
+      )
+    ),
+    new ActionRowBuilder().addComponents(
+      withPrefill(
+        new TextInputBuilder().setCustomId('deteste').setLabel('Déteste').setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(PRESENTATION_APROPOS_TEXT_MAX),
+        apro.deteste,
+        PRESENTATION_APROPOS_TEXT_MAX
       )
     )
   );
@@ -330,28 +328,30 @@ function buildModalApparence2(token, session) {
 }
 
 function buildModalApropos1(token, session) {
-  const modal = new ModalBuilder().setCustomId(`${PRESENTATION_MODAL_CUSTOM_ID}_apropos_1_${token}`).setTitle('Présentation — À propos (1/2)');
-  const apro = session?.apropos || {};
-  const field = (id, label) =>
-    withPrefill(
-      new TextInputBuilder().setCustomId(id).setLabel(label).setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(PRESENTATION_APROPOS_TEXT_MAX),
-      apro[id],
-      PRESENTATION_APROPOS_TEXT_MAX
-    );
-  modal.addComponents(
-    new ActionRowBuilder().addComponents(field('aime', 'Aime')),
-    new ActionRowBuilder().addComponents(field('deteste', 'Déteste')),
-    new ActionRowBuilder().addComponents(field('positifs', 'Traits positifs')),
-    new ActionRowBuilder().addComponents(field('negatifs', 'Traits négatifs')),
-    new ActionRowBuilder().addComponents(field('passions', 'Passions'))
-  );
-  return modal;
-}
-
-function buildModalApropos2(token, session) {
-  const modal = new ModalBuilder().setCustomId(`${PRESENTATION_MODAL_CUSTOM_ID}_apropos_2_${token}`).setTitle('Présentation — À propos (2/2)');
+  const modal = new ModalBuilder().setCustomId(`${PRESENTATION_MODAL_CUSTOM_ID}_apropos_1_${token}`).setTitle('Présentation — À propos');
   const apro = session?.apropos || {};
   modal.addComponents(
+    new ActionRowBuilder().addComponents(
+      withPrefill(
+        new TextInputBuilder().setCustomId('positifs').setLabel('Traits positifs').setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(PRESENTATION_APROPOS_TEXT_MAX),
+        apro.positifs,
+        PRESENTATION_APROPOS_TEXT_MAX
+      )
+    ),
+    new ActionRowBuilder().addComponents(
+      withPrefill(
+        new TextInputBuilder().setCustomId('negatifs').setLabel('Traits négatifs').setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(PRESENTATION_APROPOS_TEXT_MAX),
+        apro.negatifs,
+        PRESENTATION_APROPOS_TEXT_MAX
+      )
+    ),
+    new ActionRowBuilder().addComponents(
+      withPrefill(
+        new TextInputBuilder().setCustomId('passions').setLabel('Passions').setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(PRESENTATION_APROPOS_TEXT_MAX),
+        apro.passions,
+        PRESENTATION_APROPOS_TEXT_MAX
+      )
+    ),
     new ActionRowBuilder().addComponents(
       withPrefill(new TextInputBuilder().setCustomId('dm').setLabel('DM (ouverts / sur demande / fermés)').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(24), apro.dm, 24)
     )
@@ -376,7 +376,7 @@ function buildFinalPresentationEmbed(interaction, session) {
     .setAuthor(getBotAuthor(interaction.client))
     .setDescription(`\u200b\nPrésentation de <@${user.id}>\n\u200b`)
     .addFields(
-      buildEmbedField('Identité', [
+      buildEmbedField('🌈 Identité', [
         SEP,
         '',
         f('Prénom / Pseudo', ident.pseudo),
@@ -388,7 +388,7 @@ function buildFinalPresentationEmbed(interaction, session) {
         f('Situation', ident.situation),
         '\u200b',
       ]),
-      buildEmbedField('Apparence', [
+      buildEmbedField('👘 Apparence', [
         SEP,
         '',
         f('Taille', app.taille),
@@ -399,7 +399,7 @@ function buildFinalPresentationEmbed(interaction, session) {
         f('Style vestimentaire', app.style, PRESENTATION_STYLE_MAX),
         '\u200b',
       ]),
-      buildEmbedField('À propos', [
+      buildEmbedField('✍🏼 À propos', [
         SEP,
         '',
         f('Aime', apro.aime, PRESENTATION_APROPOS_TEXT_MAX),
@@ -617,6 +617,12 @@ export async function handlePresentationModalSubmit(interaction) {
         recherche: clampStr(interaction.fields.getTextInputValue('recherche'), PRESENTATION_RECHERCHE_MAX),
         situation: interaction.fields.getTextInputValue('situation')?.trim() || '',
       },
+      apparence: {
+        ...session.apparence,
+        taille: interaction.fields.getTextInputValue('taille')?.trim() || '',
+        poids: interaction.fields.getTextInputValue('poids')?.trim() || '',
+        yeux: interaction.fields.getTextInputValue('yeux')?.trim() || '',
+      },
     });
     await persistPresentationDraft(s2);
     nextAction = 'apparence_1';
@@ -624,15 +630,18 @@ export async function handlePresentationModalSubmit(interaction) {
     const s2 = upsertPresentationSession(token, {
       apparence: {
         ...session.apparence,
-        taille: interaction.fields.getTextInputValue('taille')?.trim() || '',
-        poids: interaction.fields.getTextInputValue('poids')?.trim() || '',
-        yeux: interaction.fields.getTextInputValue('yeux')?.trim() || '',
         cheveux: interaction.fields.getTextInputValue('cheveux')?.trim() || '',
         tatouages: interaction.fields.getTextInputValue('tatouages')?.trim() || '',
+        style: clampStr(interaction.fields.getTextInputValue('style'), PRESENTATION_STYLE_MAX),
+      },
+      apropos: {
+        ...session.apropos,
+        aime: clampStr(interaction.fields.getTextInputValue('aime'), PRESENTATION_APROPOS_TEXT_MAX),
+        deteste: clampStr(interaction.fields.getTextInputValue('deteste'), PRESENTATION_APROPOS_TEXT_MAX),
       },
     });
     await persistPresentationDraft(s2);
-    nextAction = 'apparence_2';
+    nextAction = 'apropos_1';
   } else if (step === 'apparence_2') {
     const s2 = upsertPresentationSession(token, {
       apparence: { ...session.apparence, style: clampStr(interaction.fields.getTextInputValue('style'), PRESENTATION_STYLE_MAX) },
@@ -643,15 +652,14 @@ export async function handlePresentationModalSubmit(interaction) {
     const s2 = upsertPresentationSession(token, {
       apropos: {
         ...session.apropos,
-        aime: clampStr(interaction.fields.getTextInputValue('aime'), PRESENTATION_APROPOS_TEXT_MAX),
-        deteste: clampStr(interaction.fields.getTextInputValue('deteste'), PRESENTATION_APROPOS_TEXT_MAX),
         positifs: clampStr(interaction.fields.getTextInputValue('positifs'), PRESENTATION_APROPOS_TEXT_MAX),
         negatifs: clampStr(interaction.fields.getTextInputValue('negatifs'), PRESENTATION_APROPOS_TEXT_MAX),
         passions: clampStr(interaction.fields.getTextInputValue('passions'), PRESENTATION_APROPOS_TEXT_MAX),
+        dm: interaction.fields.getTextInputValue('dm')?.trim() || '',
       },
     });
     await persistPresentationDraft(s2);
-    nextAction = 'apropos_2';
+    nextAction = 'finaliser';
   } else if (step === 'apropos_2') {
     const s2 = upsertPresentationSession(token, {
       apropos: { ...session.apropos, dm: interaction.fields.getTextInputValue('dm')?.trim() || '' },
@@ -802,10 +810,8 @@ export async function handlePresentationContinueButton(interaction) {
 
   let modal = null;
   if (nextAction === 'identite_2') modal = buildModalIdentite2(token, session);
-  if (nextAction === 'apparence_1') modal = buildModalApparence1(token, session);
-  if (nextAction === 'apparence_2') modal = buildModalApparence2(token, session);
-  if (nextAction === 'apropos_1') modal = buildModalApropos1(token, session);
-  if (nextAction === 'apropos_2') modal = buildModalApropos2(token, session);
+  if (nextAction === 'apparence_1' || nextAction === 'apparence_2') modal = buildModalApparence1(token, session);
+  if (nextAction === 'apropos_1' || nextAction === 'apropos_2') modal = buildModalApropos1(token, session);
   if (!modal) return interaction.reply({ content: '❌ Action inconnue.', flags: MessageFlags.Ephemeral });
   return showPresentationModal(interaction, modal);
 }

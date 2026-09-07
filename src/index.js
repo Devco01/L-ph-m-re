@@ -58,6 +58,7 @@ import {
 import { handlePresentationChannelBulkDelete, handlePresentationChannelDelete } from './presentationReset.js';
 import { persistBanProofMessage, deleteBanProofsForDeletedMessage } from './banProofs.js';
 import { handleSelfieChannelReaction, keepSelfieThreadOpen } from './selfieReactions.js';
+import { handleAutoThreadMessage, keepAutoThreadOpen } from './autoThreads.js';
 import {
   handleConfession,
   handleConfessionReponse,
@@ -307,6 +308,10 @@ client.once(Events.ClientReady, async (c) => {
   } else {
     console.warn("[L'éphémère] Selfies / OOTD inactifs: SELFIE_CHANNEL_IDS est vide dans le .env.");
   }
+  const autoThreadIds = [...(config.autoThreadChannelIds || [])];
+  if (autoThreadIds.length) {
+    console.log(`[L'éphémère] Auto-fils (images/liens) actifs sur ${autoThreadIds.length} salon(s): ${autoThreadIds.join(', ')}`);
+  }
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
@@ -465,6 +470,11 @@ client.on(Events.MessageCreate, async (message) => {
   } catch (err) {
     console.error("[L'éphémère] Erreur réactions salon selfie:", err?.message || err);
   }
+  try {
+    await handleAutoThreadMessage(message);
+  } catch (err) {
+    console.error("[L'éphémère] Erreur auto-fil:", err?.message || err);
+  }
 });
 
 client.on(Events.MessageUpdate, async (_oldMessage, newMessage) => {
@@ -486,6 +496,11 @@ client.on(Events.MessageUpdate, async (_oldMessage, newMessage) => {
   } catch (err) {
     console.error("[L'éphémère] Erreur réactions salon selfie (maj):", err?.message || err);
   }
+  try {
+    await handleAutoThreadMessage(msg);
+  } catch (err) {
+    console.error("[L'éphémère] Erreur auto-fil (maj):", err?.message || err);
+  }
 });
 
 client.on(Events.ThreadUpdate, async (oldThread, newThread) => {
@@ -493,6 +508,11 @@ client.on(Events.ThreadUpdate, async (oldThread, newThread) => {
     await keepSelfieThreadOpen(oldThread, newThread);
   } catch (err) {
     console.error("[L'éphémère] Erreur maintien fil selfie:", err?.message || err);
+  }
+  try {
+    await keepAutoThreadOpen(oldThread, newThread);
+  } catch (err) {
+    console.error("[L'éphémère] Erreur maintien auto-fil:", err?.message || err);
   }
 });
 
