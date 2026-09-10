@@ -122,6 +122,7 @@ export const config = {
   infoChannelId: envId('INFO_CHANNEL_ID'),
   infoLevel1RoleId: envId('INFO_LEVEL_1_ROLE_ID'),
   infoLevel5RoleId: envId('INFO_LEVEL_5_ROLE_ID'),
+  infoMpChannelId: envId('INFO_MP_CHANNEL_ID'),
 };
 
 export function validateConfig() {

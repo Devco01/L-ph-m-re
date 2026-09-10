@@ -51,6 +51,9 @@ function buildInformationsEmbed(client) {
         '・📸 Les salons Selfie & OOTD',
         '・💬 Le forum des passions des membres',
         '・🤫 Les confessions anonymes',
+        config.infoMpChannelId
+          ? `Ainsi que la possibilité de faire des demandes de <#${config.infoMpChannelId}>`
+          : 'Ainsi que la possibilité de faire des demandes de MP',
         '',
         sectionTitle('🚀 Boost du serveur'),
         '',
