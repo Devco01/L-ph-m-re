@@ -58,7 +58,7 @@ import {
 import { handlePresentationChannelBulkDelete, handlePresentationChannelDelete } from './presentationReset.js';
 import { persistBanProofMessage, deleteBanProofsForDeletedMessage } from './banProofs.js';
 import { handleSelfieChannelReaction, keepSelfieThreadOpen } from './selfieReactions.js';
-import { handleAutoThreadMessage, keepAutoThreadOpen } from './autoThreads.js';
+import { handleAutoThreadMessage, keepAutoThreadOpen, startIdleThreadArchiver, stopIdleThreadArchiver } from './autoThreads.js';
 import {
   handleConfession,
   handleConfessionReponse,
@@ -324,6 +324,7 @@ client.once(Events.ClientReady, async (c) => {
   }
 
   startRateLimitCleanup();
+  startIdleThreadArchiver(c);
   try {
     const registered = await registerCommands();
     console.log(`[L'éphémère] Slash commands enregistrées pour ${registered.join(', ') || 'aucun serveur'}`);
@@ -348,9 +349,13 @@ client.once(Events.ClientReady, async (c) => {
     console.warn("[L'éphémère] Selfies / OOTD inactifs: SELFIE_CHANNEL_IDS est vide dans le .env.");
   }
   for (const guildId of configuredGuildIds()) {
-    const autoThreadIds = [...(getGuildConfig(guildId).autoThreadChannelIds || [])];
+    const guildConfig = getGuildConfig(guildId);
+    const autoThreadIds = [...(guildConfig.autoThreadChannelIds || [])];
     if (autoThreadIds.length) {
       console.log(`[L'éphémère] Auto-fils (${guildId}) sur ${autoThreadIds.length} salon(s): ${autoThreadIds.join(', ')}`);
+    }
+    if (guildConfig.autoThreadArchiveMinutes >= 5) {
+      console.log(`[L'éphémère] Archivage auto des fils publics sur ${guildId} : ${guildConfig.autoThreadArchiveMinutes} min (sans verrouillage).`);
     }
   }
 });
@@ -620,12 +625,14 @@ client.on(Events.GuildBanRemove, async (ban) => {
 
 process.on('SIGINT', () => {
   stopRateLimitCleanup();
+  stopIdleThreadArchiver();
   safeReleaseInstanceLock('SIGINT').catch(() => {});
   client.destroy();
   process.exit(0);
 });
 process.on('SIGTERM', () => {
   stopRateLimitCleanup();
+  stopIdleThreadArchiver();
   safeReleaseInstanceLock('SIGTERM').catch(() => {});
   client.destroy();
   process.exit(0);
@@ -633,6 +640,7 @@ process.on('SIGTERM', () => {
 process.on('uncaughtException', (err) => {
   console.error("[L'éphémère] uncaughtException:", err?.stack || err?.message || err);
   stopRateLimitCleanup();
+  stopIdleThreadArchiver();
   safeReleaseInstanceLock('uncaughtException')
     .catch(() => {})
     .finally(() => process.exit(1));
@@ -640,6 +648,7 @@ process.on('uncaughtException', (err) => {
 process.on('unhandledRejection', (reason) => {
   console.error("[L'éphémère] unhandledRejection:", reason?.stack || reason?.message || reason);
   stopRateLimitCleanup();
+  stopIdleThreadArchiver();
   safeReleaseInstanceLock('unhandledRejection')
     .catch(() => {})
     .finally(() => process.exit(1));

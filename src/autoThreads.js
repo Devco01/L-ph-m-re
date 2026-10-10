@@ -1,5 +1,6 @@
-import { PermissionFlagsBits, ThreadAutoArchiveDuration } from 'discord.js';
+import { ChannelType, PermissionFlagsBits, ThreadAutoArchiveDuration } from 'discord.js';
 import { getGuildConfig } from './config.js';
+import { getTicketByThreadId, listConfessionLogConfigsForGuild } from './database.js';
 
 const MEDIA_ATTACHMENT_EXT = /\.(png|jpe?g|gif|webp|bmp|heic|heif|mp4|mov|webm)$/i;
 const URL_IN_TEXT = /(?:https?:\/\/|www\.)[^\s<]+|discord\.gg\/[^\s<]+/i;
@@ -50,6 +51,12 @@ function messageHasLink(message) {
   return false;
 }
 
+function archiveMinutesFor(guildId) {
+  const n = getGuildConfig(guildId).autoThreadArchiveMinutes;
+  if (!Number.isFinite(n) || n < 5) return 0;
+  return Math.min(n, 60);
+}
+
 function threadName(message) {
   const raw = message.member?.displayName || message.author?.globalName || message.author?.username || 'discussion';
   return String(raw).replace(/\s+/g, ' ').trim().slice(0, 100) || 'discussion';
@@ -79,7 +86,9 @@ async function ensureThread(message, me) {
 
   const opts = {
     name: threadName(message),
-    autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek,
+    autoArchiveDuration: archiveMinutesFor(message.guild?.id)
+      ? ThreadAutoArchiveDuration.OneHour
+      : ThreadAutoArchiveDuration.OneWeek,
     reason: 'Fil automatique sous l’image ou le lien.',
   };
 
@@ -115,6 +124,7 @@ export async function handleAutoThreadMessage(message) {
 
 export async function keepAutoThreadOpen(_oldThread, newThread) {
   const thread = newThread;
+  if (archiveMinutesFor(thread?.guildId || thread?.guild?.id)) return;
   if (!thread?.parentId || !getGuildConfig(thread.guildId || thread.guild?.id).autoThreadChannelIds.has(thread.parentId)) return;
   if (!thread.archived) return;
   if (thread.locked) return;
@@ -133,4 +143,93 @@ export async function keepAutoThreadOpen(_oldThread, newThread) {
   } catch (err) {
     console.warn(`[L'éphémère] auto-fil désarchivage impossible (${thread.id}):`, err?.message || err);
   }
+}
+
+function snowflakeTimeMs(id) {
+  if (!id) return 0;
+  try {
+    return Number((BigInt(id) >> 22n) + 1420070400000n);
+  } catch (_) {
+    return 0;
+  }
+}
+
+function threadLastActivityMs(thread) {
+  return snowflakeTimeMs(thread.lastMessageId) || thread.createdTimestamp || 0;
+}
+
+async function isPublicDiscussionThread(thread, confessionSourceIds) {
+  if (!thread || typeof thread.isThread !== 'function' || !thread.isThread()) return false;
+  if (thread.archived || thread.locked) return false;
+  if (thread.type === ChannelType.PrivateThread) return false;
+  const ticket = await getTicketByThreadId(thread.id).catch(() => null);
+  if (ticket) return false;
+  const parentId = thread.parentId;
+  if (!parentId) return false;
+  const cfg = getGuildConfig(thread.guildId || thread.guild?.id);
+  if (cfg.ticketChannelId && parentId === cfg.ticketChannelId) return false;
+  if (cfg.banLogChannelId && parentId === cfg.banLogChannelId) return false;
+  if (cfg.autoThreadChannelIds.has(parentId)) return true;
+  if (cfg.selfieChannelIds.has(parentId)) return true;
+  if (confessionSourceIds?.has(parentId)) return true;
+  return false;
+}
+
+async function archiveIdleAutoThreadsForGuild(guild) {
+  const minutes = archiveMinutesFor(guild.id);
+  if (!minutes) return 0;
+  const idleMs = minutes * 60 * 1000;
+  const now = Date.now();
+  const confessionSourceIds = new Set(
+    ((await listConfessionLogConfigsForGuild(guild.id).catch(() => [])) || []).map((c) => c.sourceChannelId).filter(Boolean)
+  );
+  let active;
+  try {
+    active = await guild.channels.fetchActiveThreads();
+  } catch (err) {
+    console.warn(`[L'éphémère] fetch fils actifs impossible:`, err?.message || err);
+    return 0;
+  }
+  const threads = active?.threads;
+  if (!threads?.size) return 0;
+  let archived = 0;
+  for (const thread of threads.values()) {
+    if (!(await isPublicDiscussionThread(thread, confessionSourceIds))) continue;
+    const last = threadLastActivityMs(thread);
+    if (!last || now - last < idleMs) continue;
+    try {
+      await thread.setArchived(true, `Inactivité ${minutes} min`);
+      archived += 1;
+    } catch (err) {
+      console.warn(`[L'éphémère] Archivage fil ${thread.id} impossible:`, err?.message || err);
+    }
+  }
+  return archived;
+}
+
+let archiveInterval = null;
+
+export function startIdleThreadArchiver(client) {
+  if (archiveInterval) return;
+  const run = async () => {
+    for (const guild of client.guilds.cache.values()) {
+      try {
+        const minutes = archiveMinutesFor(guild.id);
+        if (!minutes) continue;
+        const n = await archiveIdleAutoThreadsForGuild(guild);
+        if (n) console.log(`[L'éphémère] ${n} fil(s) archivé(s) sur ${guild.id} après ${minutes} min d’inactivité.`);
+      } catch (err) {
+        console.warn(`[L'éphémère] Archivage auto fils:`, err?.message || err);
+      }
+    }
+  };
+  archiveInterval = setInterval(run, 60 * 1000);
+  if (typeof archiveInterval.unref === 'function') archiveInterval.unref();
+  setTimeout(run, 15 * 1000).unref?.();
+}
+
+export function stopIdleThreadArchiver() {
+  if (!archiveInterval) return;
+  clearInterval(archiveInterval);
+  archiveInterval = null;
 }

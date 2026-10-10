@@ -89,9 +89,12 @@ async function ensureSelfieThread(message, me) {
     }
   }
 
+  const minutes = getGuildConfig(message.guild?.id).autoThreadArchiveMinutes;
   const opts = {
     name: selfieThreadName(message),
-    autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek,
+    autoArchiveDuration: Number.isFinite(minutes) && minutes >= 5
+      ? ThreadAutoArchiveDuration.OneHour
+      : ThreadAutoArchiveDuration.OneWeek,
     reason: 'Fil automatique sous l’image.',
   };
 
@@ -179,6 +182,8 @@ export async function handleSelfieChannelReaction(message) {
 /** Discord archive forcément les fils inactifs : on les rouvre tout de suite. */
 export async function keepSelfieThreadOpen(_oldThread, newThread) {
   const thread = newThread;
+  const minutes = getGuildConfig(thread?.guildId || thread?.guild?.id).autoThreadArchiveMinutes;
+  if (Number.isFinite(minutes) && minutes >= 5) return;
   if (!thread?.parentId || !getGuildConfig(thread.guildId || thread.guild?.id).selfieChannelIds.has(thread.parentId)) return;
   if (!thread.archived) return;
   if (thread.locked) return;

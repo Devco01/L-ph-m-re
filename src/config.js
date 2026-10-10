@@ -176,6 +176,8 @@ const GUILD_PROFILES = {
     welcomeEmojiIds: ['1558545937620672623', '1558165700244148284'],
     embedColorSanction: 0x304877,
     embedColorOther: 0x304877,
+    /** Archivage des fils publics après ce délai d’inactivité. Les tickets restent ouverts. */
+    autoThreadArchiveMinutes: 30,
   },
 };
 
