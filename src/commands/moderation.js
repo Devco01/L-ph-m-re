@@ -10,7 +10,7 @@ import {
   StringSelectMenuOptionBuilder,
 } from 'discord.js';
 import crypto from 'crypto';
-import { config } from '../config.js';
+import { config, getGuildConfig } from '../config.js';
 import {
   getBannedUser,
   addBannedUser,
@@ -161,10 +161,10 @@ function addAnalyseMemberToBuckets(buckets, p) {
 function makeAnalysePseudoEmbedPage({ guild, groupsPage, page, totalPages, totalGroups, minScore }) {
   const embed = new EmbedBuilder()
     .setColor(COLOR_OTHER)
-    .setAuthor(getBotAuthor(guild.client))
+    .setAuthor(getBotAuthor(guild.client, guild))
     .setTitle('Analyse pseudos')
     .setDescription(`Seuil **${Math.round(minScore * 100)}%** • groupes **${totalGroups}**\nPage **${page + 1}/${totalPages}**`)
-    .setFooter(getBotFooter(guild.client, {}));
+    .setFooter(getBotFooter(guild.client, { guild }));
 
   if (groupsPage.length === 0) {
     embed.addFields({ name: 'Résultat', value: 'Aucun groupe suspect trouvé avec ce seuil.', inline: false });
@@ -321,10 +321,10 @@ export async function sendBanAppealDmToBannedUser(client, guild, userId, reason,
     const user = await client.users.fetch(userId);
     const embed = new EmbedBuilder()
       .setColor(COLOR_SANCTION)
-      .setAuthor(getBotAuthor(client))
+      .setAuthor(getBotAuthor(client, guild))
       .setTitle('Bannissement')
       .setDescription(`Vous avez été banni pour la raison suivante :\n\n**${motive}**`)
-      .setFooter(getBotFooter(client, { date: footerDate }));
+      .setFooter(getBotFooter(client, { date: footerDate, guild }));
     const guildIcon = guild.iconURL({ extension: 'png', size: 256 });
     if (guildIcon) embed.setThumbnail(guildIcon);
     await user.send({ embeds: [embed] });
@@ -338,10 +338,11 @@ export async function sendBanAppealDmToBannedUser(client, guild, userId, reason,
   }
 }
 
-function buildBanSignalementEmbed(client, { userId, reason, moderatorId, bannedAt, avatarURL, updated = false }) {
+function buildBanSignalementEmbed(client, { userId, guildId, reason, moderatorId, bannedAt, avatarURL, updated = false }) {
+  const guild = client.guilds?.cache?.get(String(guildId || '')) || null;
   const embed = new EmbedBuilder()
     .setColor(COLOR_SANCTION)
-    .setAuthor(getBotAuthor(client))
+    .setAuthor(getBotAuthor(client, guild))
     .setTitle('🚨 Signalement')
     .setDescription(
       updated
@@ -353,14 +354,14 @@ function buildBanSignalementEmbed(client, { userId, reason, moderatorId, bannedA
       { name: 'Motif du ban', value: reason || 'Non précisée', inline: false },
       { name: 'Date et heure', value: formatBanDate(bannedAt || new Date().toISOString()), inline: false }
     )
-    .setFooter(getBotFooter(client, { date: bannedAt || new Date() }));
+    .setFooter(getBotFooter(client, { date: bannedAt || new Date(), guild }));
   if (avatarURL) embed.setThumbnail(avatarURL);
   return embed;
 }
 
 export async function sendBanSignalement(client, options) {
-  const channelId = config.banLogChannelId;
-  if (!channelId) return { posted: false };
+  const channelId = getGuildConfig(options.guildId).banLogChannelId;
+  if (!channelId) return { posted: false, skipped: true };
   try {
     const channel = await client.channels.fetch(channelId).catch(() => null);
     if (!channel?.isTextBased?.()) {
@@ -498,9 +499,12 @@ export async function handleBan(interaction) {
     };
     const result = await sendBanSignalement(interaction.client, signalement);
     const embed = buildBanSignalementEmbed(interaction.client, signalement);
+    const banLogChannelId = getGuildConfig(guild.id).banLogChannelId;
     const content = result?.posted
-      ? `Signalement publié dans <#${config.banLogChannelId}>.`
-      : '⚠️ Ban effectué, mais le salon de signalements est inaccessible.';
+      ? `Signalement publié dans <#${banLogChannelId}>.`
+      : result?.skipped
+        ? '✅ Utilisateur banni.'
+        : '⚠️ Ban effectué, mais le salon de signalements est inaccessible.';
 
     return interaction.editReply({ content, embeds: [embed] });
   } catch (err) {
@@ -545,7 +549,7 @@ export async function handleUnban(interaction) {
 
     const embed = new EmbedBuilder()
       .setColor(COLOR_SANCTION)
-      .setAuthor(getBotAuthor(interaction.client))
+      .setAuthor(getBotAuthor(interaction.client, guild))
       .setTitle('Utilisateur débanni')
       .setDescription(`Débanni par <@${interaction.user.id}>`)
       .addFields(
@@ -553,7 +557,7 @@ export async function handleUnban(interaction) {
         { name: 'Par', value: `<@${interaction.user.id}>`, inline: true },
         { name: 'Raison du débannissement', value: reason, inline: false }
       )
-      .setFooter(getBotFooter(interaction.client, { date: new Date() }));
+      .setFooter(getBotFooter(interaction.client, { date: new Date(), guild }));
     if (unbannedAvatarURL) embed.setThumbnail(unbannedAvatarURL);
 
     return interaction.reply({ embeds: [embed] });
@@ -603,7 +607,7 @@ export async function handleWarn(interaction) {
 
   const embed = new EmbedBuilder()
     .setColor(COLOR_SANCTION)
-    .setAuthor(getBotAuthor(interaction.client))
+    .setAuthor(getBotAuthor(interaction.client, guild))
     .setTitle('Avertissement enregistré')
     .setDescription(`Averti par <@${interaction.user.id}>`)
     .addFields(
@@ -612,7 +616,7 @@ export async function handleWarn(interaction) {
       { name: 'Raison', value: reason, inline: false },
       { name: 'Nombre d’avertissements', value: `${count} avertissement(s) pour cet utilisateur`, inline: false }
     )
-    .setFooter(getBotFooter(interaction.client, { date: new Date() }));
+    .setFooter(getBotFooter(interaction.client, { date: new Date(), guild }));
   if (userAvatarURL) embed.setThumbnail(userAvatarURL);
 
   return interaction.reply({
@@ -678,13 +682,18 @@ export async function handleUnwarn(interaction) {
 
   const embed = new EmbedBuilder()
     .setColor(COLOR_SANCTION)
-    .setAuthor(getBotAuthor(interaction.client))
+    .setAuthor(getBotAuthor(interaction.client, interaction.guild))
     .setTitle('Retirer un avertissement')
     .setDescription(
       `Avertissements de <@${userId}> (ID: ${userId}) sur ce serveur.\nRaison du retrait : **${reason}**\nChoisis celui à retirer ci-dessous.`
     )
     .setFooter(
-      getBotFooter(interaction.client, list.length > 5 ? { extra: `${list.length} avertissement(s) au total • Sélectionne dans le menu` } : {})
+      getBotFooter(
+        interaction.client,
+        list.length > 5
+          ? { extra: `${list.length} avertissement(s) au total • Sélectionne dans le menu`, guild: interaction.guild }
+          : { guild: interaction.guild }
+      )
     );
   for (let i = 0; i < Math.min(list.length, 5); i++) {
     const a = list[i];
@@ -734,7 +743,7 @@ export async function handleUnwarnSelect(interaction) {
   const count = await getAvertissementCount(userId, guildId);
   const embed = new EmbedBuilder()
     .setColor(COLOR_SANCTION)
-    .setAuthor(getBotAuthor(interaction.client))
+    .setAuthor(getBotAuthor(interaction.client, interaction.guild))
     .setTitle('Avertissement retiré')
     .addFields(
       { name: 'Utilisateur', value: `<@${userId}> (ID: ${userId})`, inline: false },
@@ -742,7 +751,7 @@ export async function handleUnwarnSelect(interaction) {
       { name: 'Raison du retrait', value: unwarnReason, inline: false },
       { name: 'Avertissements restants', value: `${count} avertissement(s) pour cet utilisateur`, inline: false }
     )
-    .setFooter(getBotFooter(interaction.client, { date: avert.created_at }));
+    .setFooter(getBotFooter(interaction.client, { date: avert.created_at, guild: interaction.guild }));
   return interaction.update({ embeds: [embed], components: [] });
 }
 

@@ -12,7 +12,7 @@ import {
   parseEmoji,
 } from 'discord.js';
 import crypto from 'crypto';
-import { config } from '../config.js';
+import { getGuildConfig } from '../config.js';
 import {
   getPresentationMessage,
   upsertPresentationMessage,
@@ -193,7 +193,7 @@ function buildPresentationPanelEmbed(interaction, session) {
   const embed = new EmbedBuilder()
     .setColor(COLOR_OTHER)
     .setTitle('Présentation — Assistant')
-    .setAuthor(getBotAuthor(interaction.client))
+    .setAuthor(getBotAuthor(interaction.client, interaction.guild))
     .setDescription(
       [
         `Utilisateur : <@${session.userId}>`,
@@ -205,7 +205,7 @@ function buildPresentationPanelEmbed(interaction, session) {
         'Clique sur **Commencer** puis suis les étapes jusqu’à **Finaliser**.',
       ].join('\n')
     )
-    .setFooter(getBotFooter(interaction.client, { extra: 'Session présentation (6 h)', date: new Date() }));
+    .setFooter(getBotFooter(interaction.client, { extra: 'Session présentation (6 h)', date: new Date(), guild: interaction.guild }));
   return embed;
 }
 
@@ -373,7 +373,7 @@ function buildFinalPresentationEmbed(interaction, session) {
 
   const embed = new EmbedBuilder()
     .setColor(COLOR_OTHER)
-    .setAuthor(getBotAuthor(interaction.client))
+    .setAuthor(getBotAuthor(interaction.client, interaction.guild))
     .setDescription(`\u200b\nPrésentation de <@${user.id}>\n\u200b`)
     .addFields(
       buildEmbedField('🌈 Identité', [
@@ -411,7 +411,7 @@ function buildFinalPresentationEmbed(interaction, session) {
         '\u200b',
       ])
     )
-    .setFooter(getBotFooter(interaction.client, { date: new Date() }));
+    .setFooter(getBotFooter(interaction.client, { date: new Date(), guild: interaction.guild }));
   if (avatar) embed.setThumbnail(avatar);
   return embed;
 }
@@ -454,7 +454,7 @@ async function resolveReactEmoji(guild, parsed) {
 }
 
 async function addPresentationPostReactions(message, guild) {
-  const reactions = (config.presentationReactions || []).slice(0, 2);
+  const reactions = (getGuildConfig(guild?.id).presentationReactions || []).slice(0, 2);
   if (!reactions.length || !message?.react) return;
   const channel = message.channel;
   const me = guild?.members?.me ?? (guild && channel ? await guild.members.fetchMe().catch(() => null) : null);
@@ -742,7 +742,7 @@ export async function handlePresentationButton(interaction) {
       const guildId = interaction.guild?.id;
       const userId = interaction.user?.id;
       const existing = guildId && userId ? await getPresentationMessage(guildId, userId, 'generale').catch(() => null) : null;
-      const sessionChannelId = config.presentationChannelId || session.channelId || interaction.channelId;
+      const sessionChannelId = getGuildConfig(guildId).presentationChannelId || session.channelId || interaction.channelId;
 
       if (existing?.channel_id && existing?.message_id) {
         try {
@@ -758,7 +758,7 @@ export async function handlePresentationButton(interaction) {
       }
 
       const ch = sessionChannelId ? await interaction.client.channels.fetch(sessionChannelId).catch(() => null) : null;
-      if (ch && typeof ch.send === 'function') {
+      if (ch && ch.guildId === guildId && typeof ch.send === 'function') {
         const newMsg = await ch.send({ embeds: [embed], allowedMentions: { parse: [] } });
         if (guildId && userId && newMsg?.id) {
           await upsertPresentationMessage(guildId, userId, sessionChannelId, newMsg.id, 'generale').catch(() => {});

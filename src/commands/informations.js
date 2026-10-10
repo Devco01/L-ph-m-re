@@ -9,9 +9,9 @@ import {
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { COLOR_OTHER, getBotAuthor, getBotFooter } from '../embeds.js';
+import { COLOR_OTHER, embedBrandName, getBotAuthor, getBotFooter } from '../embeds.js';
 import { canCloseTicket } from '../permissions.js';
-import { config } from '../config.js';
+import { getGuildConfig } from '../config.js';
 
 const THUMBNAIL_NAME = 'informations-thumbnail.png';
 const THUMBNAIL_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'assets', THUMBNAIL_NAME);
@@ -24,18 +24,20 @@ function sectionTitle(title) {
   return `✦ **__${title}__**`;
 }
 
-function buildInformationsEmbed(client) {
-  const sakura = config.reglementSakuraEmoji;
-  const level1 = roleMention(config.infoLevel1RoleId);
-  const level5 = roleMention(config.infoLevel5RoleId);
+function buildInformationsEmbed(client, guild) {
+  const brand = embedBrandName(guild);
+  const guildConfig = getGuildConfig(guild?.id);
+  const sakura = guildConfig.reglementSakuraEmoji;
+  const level1 = roleMention(guildConfig.infoLevel1RoleId);
+  const level5 = roleMention(guildConfig.infoLevel5RoleId);
 
   return new EmbedBuilder()
     .setColor(COLOR_OTHER)
-    .setAuthor(getBotAuthor(client))
+    .setAuthor(getBotAuthor(client, guild))
     .setThumbnail(`attachment://${THUMBNAIL_NAME}`)
     .setDescription(
       [
-        `${sakura} **__Informations — Chill Zoneˢᶠᵂ | FR__** ${sakura}`,
+        `${sakura} **__Informations — ${brand}__** ${sakura}`,
         '',
         sectionTitle('✨ Niveaux & avantages'),
         '',
@@ -51,8 +53,8 @@ function buildInformationsEmbed(client) {
         '・📸 Les salons Selfie & OOTD',
         '・💬 Le forum des passions des membres',
         '・🤫 Les confessions anonymes',
-        config.infoMpChannelId
-          ? `Ainsi que la possibilité de faire des demandes de <#${config.infoMpChannelId}>`
+        guildConfig.infoMpChannelId
+          ? `Ainsi que la possibilité de faire des demandes de <#${guildConfig.infoMpChannelId}>`
           : 'Ainsi que la possibilité de faire des demandes de MP',
         '',
         sectionTitle('🚀 Boost du serveur'),
@@ -68,7 +70,7 @@ function buildInformationsEmbed(client) {
         'Merci de respecter ce fonctionnement et, surtout, merci de faire vivre le serveur au quotidien. 🫶',
       ].join('\n')
     )
-    .setFooter(getBotFooter(client, { extra: 'Informations' }));
+    .setFooter(getBotFooter(client, { extra: 'Informations', guild }));
 }
 
 function buildThumbnailFile() {
@@ -109,9 +111,13 @@ export async function handleInformations(interaction) {
     });
   }
 
+  const configuredInfoId = getGuildConfig(guild.id).infoChannelId;
+  const configuredInfo = configuredInfoId
+    ? await interaction.client.channels.fetch(configuredInfoId).catch(() => null)
+    : null;
   const channel =
     interaction.options.getChannel('salon') ||
-    (config.infoChannelId ? await interaction.client.channels.fetch(config.infoChannelId).catch(() => null) : null) ||
+    (configuredInfo?.guildId === guild.id ? configuredInfo : null) ||
     interaction.channel;
 
   if (!channel?.isTextBased?.() || channel.isThread?.() || channel.isDMBased?.()) {
@@ -136,7 +142,7 @@ export async function handleInformations(interaction) {
 
   const file = buildThumbnailFile();
   const payload = {
-    embeds: [buildInformationsEmbed(interaction.client)],
+    embeds: [buildInformationsEmbed(interaction.client, guild)],
     allowedMentions: { parse: [] },
   };
   if (file) {

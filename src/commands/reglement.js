@@ -8,9 +8,9 @@ import {
   ButtonBuilder,
   ButtonStyle,
 } from 'discord.js';
-import { COLOR_OTHER, getBotAuthor, getBotFooter } from '../embeds.js';
+import { COLOR_OTHER, embedBrandName, getBotAuthor, getBotFooter } from '../embeds.js';
 import { canCloseTicket } from '../permissions.js';
-import { config } from '../config.js';
+import { getGuildConfig } from '../config.js';
 
 const REGLEMENT_ACCEPT_BUTTON_ID = 'reglement_accept';
 
@@ -30,8 +30,9 @@ function joinRules(rules) {
   return rules.join('\n\n');
 }
 
-function buildReglementEmbeds(client) {
-  const sakura = config.reglementSakuraEmoji;
+function buildReglementEmbeds(client, guild) {
+  const brand = embedBrandName(guild);
+  const sakura = getGuildConfig(guild?.id).reglementSakuraEmoji;
   const rules = [
     barParagraph(
       '1. 🔒 Serveur 100 % SFW :',
@@ -72,16 +73,16 @@ function buildReglementEmbeds(client) {
     ),
     barParagraph(
       '8. 🌿 Le mot d’ordre : bienveillance',
-      'Chill Zoneˢᶠᵂ | FR est avant tout un espace où chacun doit pouvoir se sentir à l’aise, respecté et en sécurité. Soyez respectueux envers les autres membres, la modération et vous-même. En cas de conflit ou de situation problématique, privilégiez le dialogue et faites appel à la modération.'
+      `${brand} est avant tout un espace où chacun doit pouvoir se sentir à l’aise, respecté et en sécurité. Soyez respectueux envers les autres membres, la modération et vous-même. En cas de conflit ou de situation problématique, privilégiez le dialogue et faites appel à la modération.`
     ),
   ];
 
   const first = new EmbedBuilder()
     .setColor(COLOR_OTHER)
-    .setAuthor(getBotAuthor(client))
+    .setAuthor(getBotAuthor(client, guild))
     .setDescription(
       [
-        `${sakura} **__Bienvenue sur Chill Zoneˢᶠᵂ | FR__** ${sakura}`,
+        `${sakura} **__Bienvenue sur ${brand}__** ${sakura}`,
         '',
         'Afin de préserver un espace chill, convivial, bienveillant et sécurisé, merci de prendre connaissance du règlement avant de participer à la vie du serveur.',
         '',
@@ -95,10 +96,10 @@ function buildReglementEmbeds(client) {
       [
         joinRules(rules.slice(4)),
         '',
-        `🌸 En rejoignant **__Chill Zoneˢᶠᵂ | FR__**, vous acceptez l’intégralité de ce règlement.`,
+        `🌸 En rejoignant **__${brand}__**, vous acceptez l’intégralité de ce règlement.`,
       ].join('\n')
     )
-    .setFooter(getBotFooter(client, { extra: 'Règlement' }));
+    .setFooter(getBotFooter(client, { extra: 'Règlement', guild }));
 
   return [first, second];
 }
@@ -177,7 +178,7 @@ export async function handleReglement(interaction) {
 
   try {
     await channel.send({
-      embeds: buildReglementEmbeds(interaction.client),
+      embeds: buildReglementEmbeds(interaction.client, guild),
       components: [buildReglementButtons()],
       allowedMentions: { parse: [] },
     });
@@ -209,21 +210,22 @@ export async function handleReglementButton(interaction) {
     return interaction.reply({ content: '❌ Impossible de récupérer ton profil membre.', flags: MessageFlags.Ephemeral });
   }
 
-  if (!config.reglementMemberRoleId) {
+  const memberRoleId = getGuildConfig(guild.id).reglementMemberRoleId;
+  if (!memberRoleId) {
     return interaction.reply({
       content: '❌ Rôle membre non configuré (`REGLEMENT_MEMBER_ROLE_ID`).',
       flags: MessageFlags.Ephemeral,
     });
   }
 
-  if (member.roles.cache.has(config.reglementMemberRoleId)) {
+  if (member.roles.cache.has(memberRoleId)) {
     return interaction.reply({
       content: '✅ Tu as déjà accepté le règlement.',
       flags: MessageFlags.Ephemeral,
     });
   }
 
-  const role = guild.roles.cache.get(config.reglementMemberRoleId) ?? (await guild.roles.fetch(config.reglementMemberRoleId).catch(() => null));
+  const role = guild.roles.cache.get(memberRoleId) ?? (await guild.roles.fetch(memberRoleId).catch(() => null));
   if (!role) {
     return interaction.reply({
       content: '❌ Le rôle membre est introuvable. Préviens un administrateur.',

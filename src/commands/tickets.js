@@ -13,7 +13,7 @@ import {
   ChannelType,
   ThreadAutoArchiveDuration,
 } from 'discord.js';
-import { config } from '../config.js';
+import { getGuildConfig } from '../config.js';
 import {
   createTicket,
   getTicketByThreadId,
@@ -122,7 +122,8 @@ function formatTranscriptText({ ticket, meta, messages, closedById, closeReason 
 }
 
 async function sendTicketTranscript(client, { thread, ticket, closedById, closeReason }) {
-  const channelId = config.ticketTranscriptChannelId;
+  const guildId = thread?.guildId || thread?.guild?.id || ticket?.guild_id;
+  const channelId = getGuildConfig(guildId).ticketTranscriptChannelId;
   if (!channelId) return false;
   const dest = await client.channels.fetch(channelId).catch(() => null);
   if (!dest?.isTextBased?.()) {
@@ -137,9 +138,10 @@ async function sendTicketTranscript(client, { thread, ticket, closedById, closeR
     name: `ticket-${meta.id}-${ticket.user_id}.txt`,
   });
 
+  const guild = thread?.guild || client.guilds?.cache?.get(String(guildId)) || null;
   const embed = new EmbedBuilder()
     .setColor(COLOR_OTHER)
-    .setAuthor(getBotAuthor(client))
+    .setAuthor(getBotAuthor(client, guild))
     .setTitle(`${meta.emoji} Transcript — ${meta.label}`)
     .setDescription(ticket.subject ? `**Sujet :** ${String(ticket.subject).slice(0, 1000)}` : 'Aucun sujet.')
     .addFields(
@@ -149,7 +151,7 @@ async function sendTicketTranscript(client, { thread, ticket, closedById, closeR
       { name: 'Messages', value: String(messages.length), inline: true },
       { name: 'Fil', value: `<#${thread.id}>`, inline: true }
     )
-    .setFooter(getBotFooter(client, { extra: 'Transcript', date: new Date() }));
+    .setFooter(getBotFooter(client, { extra: 'Transcript', date: new Date(), guild }));
   if (closeReason) {
     embed.addFields({ name: 'Phrase de fermeture', value: closeReason.slice(0, 1024), inline: false });
   }
@@ -177,10 +179,11 @@ async function ensureTicketChannelMemberAccess(channel, guild) {
     SendMessagesInThreads: true,
   };
   const targets = [guild.roles.everyone];
-  if (config.reglementMemberRoleId) {
+  const memberRoleId = getGuildConfig(guild.id).reglementMemberRoleId;
+  if (memberRoleId) {
     const role =
-      guild.roles.cache.get(config.reglementMemberRoleId) ||
-      (await guild.roles.fetch(config.reglementMemberRoleId).catch(() => null));
+      guild.roles.cache.get(memberRoleId) ||
+      (await guild.roles.fetch(memberRoleId).catch(() => null));
     if (role) targets.push(role);
   }
   for (const target of targets) {
@@ -206,8 +209,8 @@ async function addMemberToTicketThread(thread, userId) {
   return false;
 }
 
-function staffPingContent() {
-  const ids = config.ticketStaffRoleIds;
+function staffPingContent(guildId) {
+  const ids = getGuildConfig(guildId).ticketStaffRoleIds;
   if (!ids.length) return null;
   return ids.map((id) => `<@&${id}>`).join(' ');
 }
@@ -229,18 +232,18 @@ function ticketActionRow({ claimed = false, closed = false } = {}) {
   );
 }
 
-function buildTicketEmbed({ client, userId, type, subject, claimedBy = null, closed = false, closeReason = null }) {
+function buildTicketEmbed({ client, guild, userId, type, subject, claimedBy = null, closed = false, closeReason = null }) {
   const meta = getTicketType(type);
   const desc = closed
     ? `Ce ticket est **fermé**. Seuls les modérateurs peuvent le rouvrir.`
     : `Bonjour <@${userId}>,\nL’équipe de modération prendra en charge ta demande dès que possible.`;
   const embed = new EmbedBuilder()
     .setColor(COLOR_OTHER)
-    .setAuthor(getBotAuthor(client))
+    .setAuthor(getBotAuthor(client, guild))
     .setTitle(meta.title)
     .setDescription(desc)
     .addFields({ name: 'Sujet', value: subject || '—', inline: false })
-    .setFooter(getBotFooter(client, { extra: closed ? 'Ticket fermé' : claimedBy ? `Pris en charge` : undefined, date: new Date() }));
+    .setFooter(getBotFooter(client, { extra: closed ? 'Ticket fermé' : claimedBy ? `Pris en charge` : undefined, date: new Date(), guild }));
   if (claimedBy) {
     embed.addFields({ name: 'Pris en charge par', value: `<@${claimedBy}>`, inline: true });
   }
@@ -250,14 +253,14 @@ function buildTicketEmbed({ client, userId, type, subject, claimedBy = null, clo
   return embed;
 }
 
-function buildPanelEmbed(client) {
+function buildPanelEmbed(client, guild) {
   const handshake = '\u{1FAF1}\u{1F3FC}\u{200D}\u{1FAF2}\u{1F3FB}';
-  const modalites = config.ticketPartenariatModalitesChannelId
-    ? `<#${config.ticketPartenariatModalitesChannelId}>`
-    : '📓┃modalités';
+  const guildId = guild?.id;
+  const modalitesId = getGuildConfig(guildId).ticketPartenariatModalitesChannelId;
+  const modalites = modalitesId ? `<#${modalitesId}>` : '📓┃modalités';
   return new EmbedBuilder()
     .setColor(COLOR_OTHER)
-    .setAuthor(getBotAuthor(client))
+    .setAuthor(getBotAuthor(client, guild))
     .setTitle('🎫 Besoin d’aide ?')
     .setDescription(
       [
@@ -277,7 +280,7 @@ function buildPanelEmbed(client) {
         'Les tickets sont des espaces privés : seuls toi et les membres autorisés du staff peuvent les consulter.',
       ].join('\n')
     )
-    .setFooter(getBotFooter(client, { extra: 'Support' }));
+    .setFooter(getBotFooter(client, { extra: 'Support', guild }));
 }
 
 function buildPanelButtons() {
@@ -407,11 +410,11 @@ export async function handleTicketPanel(interaction) {
   await ensureTicketChannelMemberAccess(channel, interaction.guild);
 
   const msg = await channel.send({
-    embeds: [buildPanelEmbed(interaction.client)],
+    embeds: [buildPanelEmbed(interaction.client, interaction.guild)],
     components: [buildPanelButtons()],
   });
   await setTicketPanel(interaction.guild.id, channel.id, msg.id);
-  const pingHint = config.ticketStaffRoleIds.length
+  const pingHint = getGuildConfig(interaction.guild.id).ticketStaffRoleIds.length
     ? ''
     : '\n⚠️ `TICKET_STAFF_ROLE_IDS` est vide : aucun rôle ne sera pingé à l’ouverture.';
   return interaction.reply({
@@ -434,9 +437,10 @@ export async function handleTicketModalSubmit(interaction) {
 
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-  const parentId = config.ticketChannelId || interaction.channelId;
+  const guildConfig = getGuildConfig(guild.id);
+  const parentId = guildConfig.ticketChannelId || interaction.channelId;
   const parent = await interaction.client.channels.fetch(parentId).catch(() => null);
-  if (!parent || !parent.isTextBased?.() || parent.isThread?.() || parent.type === ChannelType.DM) {
+  if (!parent || parent.guildId !== guild.id || !parent.isTextBased?.() || parent.isThread?.() || parent.type === ChannelType.DM) {
     return interaction.editReply({
       content: '❌ Salon tickets introuvable. Un staff doit relancer `/ticket-panel` dans le salon `#ticket`.',
     });
@@ -472,9 +476,10 @@ export async function handleTicketModalSubmit(interaction) {
     console.warn(`[L'éphémère] Ticket: membre ${interaction.user.id} non ajouté au fil ${thread.id}`);
   }
 
-  const ping = staffPingContent();
+  const ping = staffPingContent(guild.id);
   const embed = buildTicketEmbed({
     client: interaction.client,
+    guild,
     userId: interaction.user.id,
     type: meta.id,
     subject,
@@ -485,7 +490,7 @@ export async function handleTicketModalSubmit(interaction) {
       content: ping || undefined,
       embeds: [embed],
       components: [ticketActionRow()],
-      allowedMentions: { roles: config.ticketStaffRoleIds, users: [interaction.user.id] },
+      allowedMentions: { roles: guildConfig.ticketStaffRoleIds, users: [interaction.user.id] },
     });
     await createTicket({
       guildId: guild.id,
@@ -544,6 +549,7 @@ export async function handleTicketButton(interaction) {
     await claimTicket(thread.id, interaction.user.id);
     const embed = buildTicketEmbed({
       client: interaction.client,
+      guild: interaction.guild,
       userId: ticket.user_id,
       type: ticket.type,
       subject: ticket.subject,
@@ -633,6 +639,7 @@ export async function handleTicketCloseModal(interaction) {
 
   const embed = buildTicketEmbed({
     client: interaction.client,
+    guild: interaction.guild,
     userId: ticket.user_id,
     type: ticket.type,
     subject: ticket.subject,

@@ -55,11 +55,11 @@ async function sendConfessionStaffLog({
   const msgUrl = `https://discord.com/channels/${guild.id}/${channelId}/${messageId}`;
   const embed = new EmbedBuilder()
     .setColor(COLOR_OTHER)
-    .setAuthor(getBotAuthor(client))
+    .setAuthor(getBotAuthor(client, guild))
     .setDescription(body)
     .setThumbnail(user.displayAvatarURL({ size: 256, extension: 'png', forceStatic: false }))
     .addFields({ name: 'Auteur', value: `<@${user.id}>`, inline: false })
-    .setFooter(getBotFooter(client, { extra: `Salon d’origine : #${originChannelLabel}` }));
+    .setFooter(getBotFooter(client, { extra: `Salon d’origine : #${originChannelLabel}`, guild }));
   if (embedTitle) embed.setTitle(embedTitle);
   if (imageUrl) embed.setImage(imageUrl);
 
@@ -316,7 +316,7 @@ export async function handleConfession(interaction) {
   try {
     const publicEmbed = new EmbedBuilder()
       .setColor(COLOR_OTHER)
-      .setAuthor(getBotAuthor(interaction.client))
+      .setAuthor(getBotAuthor(interaction.client, interaction.guild))
       .setDescription(confessionBody);
     if (confessionNo > 0) publicEmbed.setTitle(`Confession n°${confessionNo}`);
     if (imageUrl) {
@@ -443,7 +443,7 @@ export async function handleConfessionReponse(interaction) {
   try {
     const publicEmbed = new EmbedBuilder()
       .setColor(COLOR_OTHER)
-      .setAuthor(getBotAuthor(interaction.client))
+      .setAuthor(getBotAuthor(interaction.client, interaction.guild))
       .setDescription(replyBody);
     sent = await channel.send({
       embeds: [publicEmbed],

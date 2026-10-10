@@ -1,12 +1,12 @@
 import { PermissionFlagsBits, parseEmoji, ThreadAutoArchiveDuration } from 'discord.js';
-import { config } from './config.js';
+import { getGuildConfig } from './config.js';
 
 const MEDIA_ATTACHMENT_EXT = /\.(png|jpe?g|gif|webp|bmp|heic|heif|mp4|mov|webm)$/i;
 const recentlyHandled = new Set();
 
 /** Ordre des réactions auto (IDs ou URL CDN, y compris animated=true). */
-function selfieReactionList() {
-  return config.selfieReactionIds || [];
+function selfieReactionList(guildId) {
+  return getGuildConfig(guildId).selfieReactionIds || [];
 }
 
 function wait(ms) {
@@ -56,7 +56,7 @@ function messageHasImage(message) {
 }
 
 function isSelfieParentChannel(message) {
-  const ids = config.selfieChannelIds;
+  const ids = getGuildConfig(message.guild?.id).selfieChannelIds;
   if (!ids?.size) return false;
   if (typeof message.channel?.isThread === 'function' && message.channel.isThread()) return false;
   return ids.has(message.channelId);
@@ -135,7 +135,7 @@ async function resolveReactEmoji(guild, parsed) {
 }
 
 async function addSelfieReactions(message, me) {
-  const reactions = selfieReactionList();
+  const reactions = selfieReactionList(message.guild?.id);
   if (!reactions?.length || !message.react) return;
 
   const channel = message.channel;
@@ -179,7 +179,7 @@ export async function handleSelfieChannelReaction(message) {
 /** Discord archive forcément les fils inactifs : on les rouvre tout de suite. */
 export async function keepSelfieThreadOpen(_oldThread, newThread) {
   const thread = newThread;
-  if (!thread?.parentId || !config.selfieChannelIds.has(thread.parentId)) return;
+  if (!thread?.parentId || !getGuildConfig(thread.guildId || thread.guild?.id).selfieChannelIds.has(thread.parentId)) return;
   if (!thread.archived) return;
   if (thread.locked) return;
 

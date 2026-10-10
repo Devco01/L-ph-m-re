@@ -1,7 +1,7 @@
 import { config } from './config.js';
 import { formatFooterDateTime } from './validation.js';
 
-const FOOTER_BRAND = 'Chill Zoneˢᶠᵂ | FR';
+const PRIMARY_BRAND = 'Chill Zoneˢᶠᵂ | FR';
 
 export const COLOR_SANCTION = config.embedColorSanction;
 export const COLOR_OTHER = config.embedColorOther;
@@ -12,29 +12,39 @@ function getBotAvatarIconURL(client) {
   return user.displayAvatarURL({ extension: 'png', size: 128, forceStatic: true });
 }
 
-function getEmbedBrandIconURL(client) {
-  const guildId = config.guildId;
-  if (guildId && client) {
-    const guild = client.guilds.cache.get(guildId);
-    const guildIcon = guild?.iconURL?.({ extension: 'png', size: 128, forceStatic: true });
-    if (guildIcon) return guildIcon;
-  }
+/** Nom affiché dans les embeds : Chill Zone sur le serveur principal, nom du serveur ailleurs. */
+export function embedBrandName(guild) {
+  if (!guild) return PRIMARY_BRAND;
+  if (config.guildId && String(guild.id) === String(config.guildId)) return PRIMARY_BRAND;
+  const name = String(guild.name || '').trim();
+  return name || PRIMARY_BRAND;
+}
+
+function getEmbedBrandIconURL(client, guild) {
+  const target =
+    guild ||
+    (config.guildId && client?.guilds?.cache?.get(String(config.guildId))) ||
+    null;
+  const guildIcon = target?.iconURL?.({ extension: 'png', size: 128, forceStatic: true });
+  if (guildIcon) return guildIcon;
   return getBotAvatarIconURL(client);
 }
 
-export function getBotAuthor(client) {
-  const iconURL = getEmbedBrandIconURL(client);
-  return iconURL ? { name: FOOTER_BRAND, iconURL } : { name: FOOTER_BRAND };
+export function getBotAuthor(client, guild) {
+  const name = embedBrandName(guild);
+  const iconURL = getEmbedBrandIconURL(client, guild);
+  return iconURL ? { name, iconURL } : { name };
 }
 
 export function getBotFooter(client, options = {}) {
-  let text = FOOTER_BRAND;
+  const guild = options.guild ?? null;
+  let text = embedBrandName(guild);
   if (options.extra) text += ` • ${options.extra}`;
   if (options.date != null) {
     const d = options.date instanceof Date ? options.date : new Date(options.date);
     const dateStr = formatFooterDateTime(d);
     if (dateStr) text += ` • ${dateStr}`;
   }
-  const iconURL = getEmbedBrandIconURL(client);
+  const iconURL = getEmbedBrandIconURL(client, guild);
   return iconURL ? { text, iconURL } : { text };
 }

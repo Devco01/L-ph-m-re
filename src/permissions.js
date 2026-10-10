@@ -1,12 +1,13 @@
 import { PermissionFlagsBits, PermissionsBitField } from 'discord.js';
-import { config } from './config.js';
+import { getGuildConfig } from './config.js';
 
 export async function hasAdminRole(interaction) {
   const member = interaction.member;
   const guild = interaction.guild;
   if (!member || !guild) return false;
+  const guildConfig = getGuildConfig(guild.id);
   if (interaction.user?.id === guild.ownerId) return true;
-  if (config.founderUserId && interaction.user.id === config.founderUserId) return true;
+  if (guildConfig.founderUserId && interaction.user.id === guildConfig.founderUserId) return true;
 
   const mp = interaction.memberPermissions;
   if (mp?.has?.(PermissionFlagsBits.Administrator) || mp?.has?.(PermissionFlagsBits.BanMembers)) return true;
@@ -19,8 +20,8 @@ export async function hasAdminRole(interaction) {
     if (perms.has(PermissionFlagsBits.Administrator) || perms.has(PermissionFlagsBits.BanMembers)) return true;
   }
 
-  if (member.roles?.cache?.some?.((r) => config.adminRoleIds.has(r.id))) return true;
-  if (Array.isArray(member.roles) && member.roles.some((roleId) => config.adminRoleIds.has(roleId))) return true;
+  if (member.roles?.cache?.some?.((r) => guildConfig.adminRoleIds.has(r.id))) return true;
+  if (Array.isArray(member.roles) && member.roles.some((roleId) => guildConfig.adminRoleIds.has(roleId))) return true;
 
   try {
     const liveMember = await guild.members.fetch(interaction.user.id);
@@ -28,7 +29,7 @@ export async function hasAdminRole(interaction) {
     if (liveMember.permissions.has(PermissionFlagsBits.Administrator) || liveMember.permissions.has(PermissionFlagsBits.BanMembers)) {
       return true;
     }
-    if (liveMember.roles?.cache?.some((r) => config.adminRoleIds.has(r.id))) return true;
+    if (liveMember.roles?.cache?.some((r) => guildConfig.adminRoleIds.has(r.id))) return true;
   } catch (_) {}
   return false;
 }
@@ -38,8 +39,9 @@ export async function canCloseTicket(interaction) {
   const member = interaction.member;
   const guild = interaction.guild;
   if (!member || !guild) return false;
+  const guildConfig = getGuildConfig(guild.id);
   if (interaction.user?.id === guild.ownerId) return true;
-  if (config.founderUserId && interaction.user.id === config.founderUserId) return true;
+  if (guildConfig.founderUserId && interaction.user.id === guildConfig.founderUserId) return true;
 
   const mp = interaction.memberPermissions;
   if (mp?.has?.(PermissionFlagsBits.Administrator)) return true;
@@ -52,25 +54,26 @@ export async function canCloseTicket(interaction) {
     if (perms.has(PermissionFlagsBits.Administrator)) return true;
   }
 
-  if (member.roles?.cache?.some?.((r) => config.adminRoleIds.has(r.id))) return true;
-  if (Array.isArray(member.roles) && member.roles.some((roleId) => config.adminRoleIds.has(roleId))) return true;
+  if (member.roles?.cache?.some?.((r) => guildConfig.adminRoleIds.has(r.id))) return true;
+  if (Array.isArray(member.roles) && member.roles.some((roleId) => guildConfig.adminRoleIds.has(roleId))) return true;
 
   try {
     const liveMember = await guild.members.fetch(interaction.user.id);
     if (!liveMember) return false;
     if (liveMember.permissions.has(PermissionFlagsBits.Administrator)) return true;
-    if (liveMember.roles?.cache?.some((r) => config.adminRoleIds.has(r.id))) return true;
+    if (liveMember.roles?.cache?.some((r) => guildConfig.adminRoleIds.has(r.id))) return true;
   } catch (_) {}
   return false;
 }
 
 export function isStaffMember(member) {
   if (!member) return false;
+  const guildConfig = getGuildConfig(member.guild?.id);
   if (member.permissions?.has?.(PermissionFlagsBits.Administrator) || member.permissions?.has?.(PermissionFlagsBits.BanMembers)) {
     return true;
   }
   if (member.permissions?.has?.(PermissionFlagsBits.ManageThreads)) return true;
-  if (member.roles?.cache?.some?.((r) => config.adminRoleIds.has(r.id))) return true;
-  if (config.ticketStaffRoleIds.some((id) => member.roles?.cache?.has?.(id))) return true;
+  if (member.roles?.cache?.some?.((r) => guildConfig.adminRoleIds.has(r.id))) return true;
+  if (guildConfig.ticketStaffRoleIds.some((id) => member.roles?.cache?.has?.(id))) return true;
   return false;
 }

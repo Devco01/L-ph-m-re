@@ -2,7 +2,7 @@ import { Client, Events, GatewayIntentBits, REST, Routes, MessageFlags, Options,
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { config, validateConfig } from './config.js';
+import { config, validateConfig, configuredGuildIds, getGuildConfig } from './config.js';
 import { startRateLimitCleanup, stopRateLimitCleanup } from './rateLimit.js';
 import {
   initDatabase,
@@ -66,6 +66,7 @@ import {
 } from './commands/confession.js';
 import { handleReglement, isReglementButton, handleReglementButton } from './commands/reglement.js';
 import { handleInformations } from './commands/informations.js';
+import { handleWelcome } from './welcome.js';
 
 validateConfig();
 
@@ -78,35 +79,62 @@ const AVATAR_SYNC_PATH = path.join(process.cwd(), 'data', 'avatar-sync.json');
 let instanceLockHeartbeat = null;
 let hasInstanceLock = false;
 
+function readAvatarSyncState() {
+  try {
+    const last = JSON.parse(fs.readFileSync(AVATAR_SYNC_PATH, 'utf8'));
+    const guilds = { ...(last.guilds || {}) };
+    if (last.guildId && last.iconHash && !guilds[last.guildId]) guilds[last.guildId] = last.iconHash;
+    return guilds;
+  } catch (_) {
+    return {};
+  }
+}
+
+function writeAvatarSyncState(guilds) {
+  fs.mkdirSync(path.dirname(AVATAR_SYNC_PATH), { recursive: true });
+  fs.writeFileSync(AVATAR_SYNC_PATH, JSON.stringify({ guilds }));
+}
+
 async function syncBotAvatarWithGuild(client) {
-  const guild = (config.guildId && client.guilds.cache.get(config.guildId)) || client.guilds.cache.first();
-  if (!guild) {
-    console.warn("[L'éphémère] Avatar: aucun serveur pour copier l’icône.");
-    return;
+  const guildIds = configuredGuildIds();
+  const synced = readAvatarSyncState();
+  let changed = false;
+
+  for (const guildId of guildIds) {
+    const guild =
+      client.guilds.cache.get(guildId) || (await client.guilds.fetch(guildId).catch(() => null));
+    if (!guild) {
+      console.warn(`[L'éphémère] Avatar: serveur ${guildId} introuvable.`);
+      continue;
+    }
+    if (!guild.icon) {
+      console.warn(`[L'éphémère] Avatar: ${guild.name} n’a pas d’icône.`);
+      continue;
+    }
+    if (synced[guild.id] === guild.icon) continue;
+
+    const iconURL = guild.iconURL({ extension: 'png', size: 256, forceStatic: true });
+    if (!iconURL) continue;
+
+    const primary = config.guildId && String(guild.id) === String(config.guildId);
+    try {
+      if (primary) {
+        await client.user.setAvatar(iconURL);
+      } else {
+        await guild.members.editMe({
+          avatar: iconURL,
+          reason: 'Photo de profil alignée sur l’icône du serveur',
+        });
+      }
+      synced[guild.id] = guild.icon;
+      changed = true;
+      console.log(`[L'éphémère] Photo de profil alignée sur l’icône de ${guild.name}.`);
+    } catch (e) {
+      console.warn(`[L'éphémère] Photo de profil impossible sur ${guild.name}:`, e?.message || e);
+    }
   }
-  if (!guild.icon) {
-    console.warn("[L'éphémère] Avatar: le serveur n’a pas d’icône.");
-    return;
-  }
 
-  let last = {};
-  try {
-    last = JSON.parse(fs.readFileSync(AVATAR_SYNC_PATH, 'utf8'));
-  } catch (_) {}
-
-  if (last.guildId === guild.id && last.iconHash === guild.icon) return;
-
-  const iconURL = guild.iconURL({ size: 256 });
-  if (!iconURL) return;
-
-  try {
-    await client.user.setAvatar(iconURL);
-    fs.mkdirSync(path.dirname(AVATAR_SYNC_PATH), { recursive: true });
-    fs.writeFileSync(AVATAR_SYNC_PATH, JSON.stringify({ guildId: guild.id, iconHash: guild.icon }));
-    console.log("[L'éphémère] Photo de profil alignée sur l’icône du serveur.");
-  } catch (e) {
-    console.warn("[L'éphémère] Changement de photo de profil impossible:", e?.message || e);
-  }
+  if (changed) writeAvatarSyncState(synced);
 }
 
 async function safeReleaseInstanceLock(reason) {
@@ -261,11 +289,22 @@ function attachResilientInteractionHandlers(interaction) {
 async function registerCommands() {
   const rest = new REST().setToken(config.token);
   const body = commands;
-  if (config.guildId) {
-    await rest.put(Routes.applicationCommands(client.user.id), { body: [] });
-    return await rest.put(Routes.applicationGuildCommands(client.user.id, config.guildId), { body });
+  const guildIds = configuredGuildIds();
+  if (!guildIds.length) {
+    await rest.put(Routes.applicationCommands(client.user.id), { body });
+    return ['global'];
   }
-  return await rest.put(Routes.applicationCommands(client.user.id), { body });
+  await rest.put(Routes.applicationCommands(client.user.id), { body: [] });
+  const registered = [];
+  for (const guildId of guildIds) {
+    try {
+      await rest.put(Routes.applicationGuildCommands(client.user.id, guildId), { body });
+      registered.push(guildId);
+    } catch (e) {
+      console.error(`[L'éphémère] Commandes non enregistrées sur ${guildId}:`, e?.message || e);
+    }
+  }
+  return registered;
 }
 
 client.once(Events.ClientReady, async (c) => {
@@ -286,9 +325,8 @@ client.once(Events.ClientReady, async (c) => {
 
   startRateLimitCleanup();
   try {
-    await registerCommands();
-    const scope = config.guildId ? `serveur ${config.guildId}` : 'tous les serveurs (global)';
-    console.log(`[L'éphémère] Slash commands enregistrées pour ${scope}`);
+    const registered = await registerCommands();
+    console.log(`[L'éphémère] Slash commands enregistrées pour ${registered.join(', ') || 'aucun serveur'}`);
   } catch (e) {
     console.error("[L'éphémère] Erreur enregistrement commandes:", e.message);
   }
@@ -309,9 +347,11 @@ client.once(Events.ClientReady, async (c) => {
   } else {
     console.warn("[L'éphémère] Selfies / OOTD inactifs: SELFIE_CHANNEL_IDS est vide dans le .env.");
   }
-  const autoThreadIds = [...(config.autoThreadChannelIds || [])];
-  if (autoThreadIds.length) {
-    console.log(`[L'éphémère] Auto-fils (images/liens) actifs sur ${autoThreadIds.length} salon(s): ${autoThreadIds.join(', ')}`);
+  for (const guildId of configuredGuildIds()) {
+    const autoThreadIds = [...(getGuildConfig(guildId).autoThreadChannelIds || [])];
+    if (autoThreadIds.length) {
+      console.log(`[L'éphémère] Auto-fils (${guildId}) sur ${autoThreadIds.length} salon(s): ${autoThreadIds.join(', ')}`);
+    }
   }
 });
 
@@ -524,6 +564,14 @@ client.on(Events.MessageDelete, async (message) => {
     await deleteBanProofsForDeletedMessage(message);
   } catch (err) {
     console.error("[L'éphémère] Erreur suppression preuve:", err?.message || err);
+  }
+});
+
+client.on(Events.GuildMemberAdd, async (member) => {
+  try {
+    await handleWelcome(member);
+  } catch (err) {
+    console.error("[L'éphémère] Erreur message de bienvenue:", err?.message || err);
   }
 });
 

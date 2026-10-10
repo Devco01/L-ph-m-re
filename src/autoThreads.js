@@ -1,5 +1,5 @@
 import { PermissionFlagsBits, ThreadAutoArchiveDuration } from 'discord.js';
-import { config } from './config.js';
+import { getGuildConfig } from './config.js';
 
 const MEDIA_ATTACHMENT_EXT = /\.(png|jpe?g|gif|webp|bmp|heic|heif|mp4|mov|webm)$/i;
 const URL_IN_TEXT = /(?:https?:\/\/|www\.)[^\s<]+|discord\.gg\/[^\s<]+/i;
@@ -18,7 +18,7 @@ function rememberHandled(messageId) {
 }
 
 function isAutoThreadParentChannel(message) {
-  const ids = config.autoThreadChannelIds;
+  const ids = getGuildConfig(message.guild?.id).autoThreadChannelIds;
   if (!ids?.size) return false;
   if (typeof message.channel?.isThread === 'function' && message.channel.isThread()) return false;
   return ids.has(message.channelId);
@@ -115,7 +115,7 @@ export async function handleAutoThreadMessage(message) {
 
 export async function keepAutoThreadOpen(_oldThread, newThread) {
   const thread = newThread;
-  if (!thread?.parentId || !config.autoThreadChannelIds.has(thread.parentId)) return;
+  if (!thread?.parentId || !getGuildConfig(thread.guildId || thread.guild?.id).autoThreadChannelIds.has(thread.parentId)) return;
   if (!thread.archived) return;
   if (thread.locked) return;
 
