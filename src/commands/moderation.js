@@ -24,7 +24,7 @@ import {
 import { isValidDiscordId, sanitizeReason, parseUserIdFromOption, formatBanDate } from '../validation.js';
 import { checkRateLimit } from '../rateLimit.js';
 import { resolveReasonToFullTag } from '../sanctionsTags.js';
-import { COLOR_SANCTION, COLOR_OTHER, getBotAuthor, getBotFooter } from '../embeds.js';
+import { embedColor, getBotAuthor, getBotFooter } from '../embeds.js';
 import { hasAdminRole } from '../permissions.js';
 import { createBanProofThread, persistProofThreadLink } from '../banProofs.js';
 
@@ -160,7 +160,7 @@ function addAnalyseMemberToBuckets(buckets, p) {
 
 function makeAnalysePseudoEmbedPage({ guild, groupsPage, page, totalPages, totalGroups, minScore }) {
   const embed = new EmbedBuilder()
-    .setColor(COLOR_OTHER)
+    .setColor(embedColor(guild))
     .setAuthor(getBotAuthor(guild.client, guild))
     .setTitle('Analyse pseudos')
     .setDescription(`Seuil **${Math.round(minScore * 100)}%** • groupes **${totalGroups}**\nPage **${page + 1}/${totalPages}**`)
@@ -320,7 +320,7 @@ export async function sendBanAppealDmToBannedUser(client, guild, userId, reason,
   try {
     const user = await client.users.fetch(userId);
     const embed = new EmbedBuilder()
-      .setColor(COLOR_SANCTION)
+      .setColor(embedColor(guild, 'sanction'))
       .setAuthor(getBotAuthor(client, guild))
       .setTitle('Bannissement')
       .setDescription(`Vous avez été banni pour la raison suivante :\n\n**${motive}**`)
@@ -341,7 +341,7 @@ export async function sendBanAppealDmToBannedUser(client, guild, userId, reason,
 function buildBanSignalementEmbed(client, { userId, guildId, reason, moderatorId, bannedAt, avatarURL, updated = false }) {
   const guild = client.guilds?.cache?.get(String(guildId || '')) || null;
   const embed = new EmbedBuilder()
-    .setColor(COLOR_SANCTION)
+    .setColor(embedColor(guild, 'sanction'))
     .setAuthor(getBotAuthor(client, guild))
     .setTitle('🚨 Signalement')
     .setDescription(
@@ -548,7 +548,7 @@ export async function handleUnban(interaction) {
     } catch (_) {}
 
     const embed = new EmbedBuilder()
-      .setColor(COLOR_SANCTION)
+      .setColor(embedColor(guild, 'sanction'))
       .setAuthor(getBotAuthor(interaction.client, guild))
       .setTitle('Utilisateur débanni')
       .setDescription(`Débanni par <@${interaction.user.id}>`)
@@ -606,7 +606,7 @@ export async function handleWarn(interaction) {
   const count = await getAvertissementCount(userId, guild.id);
 
   const embed = new EmbedBuilder()
-    .setColor(COLOR_SANCTION)
+    .setColor(embedColor(guild, 'sanction'))
     .setAuthor(getBotAuthor(interaction.client, guild))
     .setTitle('Avertissement enregistré')
     .setDescription(`Averti par <@${interaction.user.id}>`)
@@ -681,7 +681,7 @@ export async function handleUnwarn(interaction) {
     .addOptions(options);
 
   const embed = new EmbedBuilder()
-    .setColor(COLOR_SANCTION)
+    .setColor(embedColor(guild, 'sanction'))
     .setAuthor(getBotAuthor(interaction.client, interaction.guild))
     .setTitle('Retirer un avertissement')
     .setDescription(
@@ -742,7 +742,7 @@ export async function handleUnwarnSelect(interaction) {
 
   const count = await getAvertissementCount(userId, guildId);
   const embed = new EmbedBuilder()
-    .setColor(COLOR_SANCTION)
+    .setColor(embedColor(interaction.guild, 'sanction'))
     .setAuthor(getBotAuthor(interaction.client, interaction.guild))
     .setTitle('Avertissement retiré')
     .addFields(

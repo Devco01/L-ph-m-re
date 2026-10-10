@@ -12,7 +12,7 @@ import {
   parseEmoji,
 } from 'discord.js';
 import crypto from 'crypto';
-import { getGuildConfig } from '../config.js';
+import { config, getGuildConfig } from '../config.js';
 import {
   getPresentationMessage,
   upsertPresentationMessage,
@@ -21,7 +21,7 @@ import {
   upsertPresentationDraft,
   deletePresentationDraft,
 } from '../database.js';
-import { COLOR_OTHER, getBotAuthor, getBotFooter } from '../embeds.js';
+import { embedColor, getBotAuthor, getBotFooter } from '../embeds.js';
 
 const PRESENTATION_MODAL_CUSTOM_ID = 'presentation_modal_v1';
 const PRESENTATION_SESSION_TTL_MS = 6 * 60 * 60 * 1000;
@@ -189,18 +189,23 @@ function presentationDraftHasData(data) {
   return hasKeys(data?.identite) || hasKeys(data?.apparence) || hasKeys(data?.apropos);
 }
 
+function usesEdenPresentation(guild) {
+  return Boolean(guild?.id && config.guildId && String(guild.id) !== String(config.guildId));
+}
+
 function buildPresentationPanelEmbed(interaction, session) {
+  const eden = usesEdenPresentation(interaction.guild);
   const embed = new EmbedBuilder()
-    .setColor(COLOR_OTHER)
+    .setColor(embedColor(interaction.guild))
     .setTitle('Présentation — Assistant')
     .setAuthor(getBotAuthor(interaction.client, interaction.guild))
     .setDescription(
       [
         `Utilisateur : <@${session.userId}>`,
         '',
-        `- 🌈 Identité : ${doneKeys(session.identite, ['pseudo', 'age', 'localisation', 'genre', 'orientation', 'recherche', 'situation']) ? '✅' : '⏳'}`,
-        `- 👘 Apparence : ${doneKeys(session.apparence, ['taille', 'poids', 'yeux', 'cheveux', 'tatouages', 'style']) ? '✅' : '⏳'}`,
-        `- ✍🏼 À propos : ${doneKeys(session.apropos, ['aime', 'deteste', 'positifs', 'negatifs', 'passions', 'dm']) ? '✅' : '⏳'}`,
+        `- ${eden ? 'Identité' : '🌈 Identité'} : ${doneKeys(session.identite, ['pseudo', 'age', 'localisation', 'genre', 'orientation', 'recherche', 'situation']) ? '✅' : '⏳'}`,
+        `- ${eden ? 'Apparence' : '👘 Apparence'} : ${doneKeys(session.apparence, ['taille', 'poids', 'yeux', 'cheveux', 'tatouages', 'style']) ? '✅' : '⏳'}`,
+        `- ${eden ? 'À propos' : '✍🏼 À propos'} : ${doneKeys(session.apropos, ['aime', 'deteste', 'positifs', 'negatifs', 'passions', 'dm']) ? '✅' : '⏳'}`,
         '',
         'Clique sur **Commencer** puis suis les étapes jusqu’à **Finaliser**.',
       ].join('\n')
@@ -251,7 +256,10 @@ function withPrefill(input, value, max) {
 }
 
 function buildModalIdentite1(token, session) {
-  const modal = new ModalBuilder().setCustomId(`${PRESENTATION_MODAL_CUSTOM_ID}_identite_1_${token}`).setTitle('Présentation — Identité');
+  const eden = usesEdenPresentation({ id: session?.guildId });
+  const modal = new ModalBuilder()
+    .setCustomId(`${PRESENTATION_MODAL_CUSTOM_ID}_identite_1_${token}`)
+    .setTitle(eden ? 'Présentation — 1/4' : 'Présentation — Identité');
   const ident = session?.identite || {};
   modal.addComponents(
     new ActionRowBuilder().addComponents(
@@ -261,7 +269,16 @@ function buildModalIdentite1(token, session) {
       withPrefill(new TextInputBuilder().setCustomId('age').setLabel('Âge').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(16), ident.age, 16)
     ),
     new ActionRowBuilder().addComponents(
-      withPrefill(new TextInputBuilder().setCustomId('localisation').setLabel('Région').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(64), ident.localisation, 64)
+      withPrefill(
+        new TextInputBuilder()
+          .setCustomId('localisation')
+          .setLabel(usesEdenPresentation({ id: session?.guildId }) ? 'Localisation (pays/ville/région)' : 'Région')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true)
+          .setMaxLength(64),
+        ident.localisation,
+        64
+      )
     ),
     new ActionRowBuilder().addComponents(
       withPrefill(new TextInputBuilder().setCustomId('genre').setLabel('Genre').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(32), ident.genre, 32)
@@ -274,7 +291,9 @@ function buildModalIdentite1(token, session) {
 }
 
 function buildModalIdentite2(token, session) {
-  const modal = new ModalBuilder().setCustomId(`${PRESENTATION_MODAL_CUSTOM_ID}_identite_2_${token}`).setTitle('Présentation — Identité / Apparence');
+  const modal = new ModalBuilder()
+    .setCustomId(`${PRESENTATION_MODAL_CUSTOM_ID}_identite_2_${token}`)
+    .setTitle(usesEdenPresentation({ id: session?.guildId }) ? 'Présentation — 2/4' : 'Présentation — Identité / Apparence');
   const ident = session?.identite || {};
   const app = session?.apparence || {};
   modal.addComponents(
@@ -296,7 +315,9 @@ function buildModalIdentite2(token, session) {
 }
 
 function buildModalApparence1(token, session) {
-  const modal = new ModalBuilder().setCustomId(`${PRESENTATION_MODAL_CUSTOM_ID}_apparence_1_${token}`).setTitle('Présentation — Apparence / À propos');
+  const modal = new ModalBuilder()
+    .setCustomId(`${PRESENTATION_MODAL_CUSTOM_ID}_apparence_1_${token}`)
+    .setTitle(usesEdenPresentation({ id: session?.guildId }) ? 'Présentation — 3/4' : 'Présentation — Apparence / À propos');
   const app = session?.apparence || {};
   const apro = session?.apropos || {};
   modal.addComponents(
@@ -328,7 +349,9 @@ function buildModalApparence1(token, session) {
 }
 
 function buildModalApropos1(token, session) {
-  const modal = new ModalBuilder().setCustomId(`${PRESENTATION_MODAL_CUSTOM_ID}_apropos_1_${token}`).setTitle('Présentation — À propos');
+  const modal = new ModalBuilder()
+    .setCustomId(`${PRESENTATION_MODAL_CUSTOM_ID}_apropos_1_${token}`)
+    .setTitle(usesEdenPresentation({ id: session?.guildId }) ? 'Présentation — 4/4' : 'Présentation — À propos');
   const apro = session?.apropos || {};
   modal.addComponents(
     new ActionRowBuilder().addComponents(
@@ -362,33 +385,35 @@ function buildModalApropos1(token, session) {
 function buildFinalPresentationEmbed(interaction, session) {
   const user = interaction.user;
   const avatar = user?.displayAvatarURL?.({ size: 256 });
+  const eden = usesEdenPresentation(interaction.guild);
   const SEP = '┈┈୨୧┈┈୨୧┈┈୨୧┈┈';
+  const mark = eden ? '➤' : '✦';
   const f = (label, val, maxLen) => {
     const v = maxLen ? clampStr(val, maxLen) : val && String(val).trim() ? String(val).trim() : '';
-    return `✦ **${label} :** ${v || '—'}`;
+    return `${mark} **${label} :** ${v || '—'}`;
   };
   const ident = session.identite || {};
   const app = session.apparence || {};
   const apro = session.apropos || {};
 
   const embed = new EmbedBuilder()
-    .setColor(COLOR_OTHER)
+    .setColor(embedColor(interaction.guild))
     .setAuthor(getBotAuthor(interaction.client, interaction.guild))
     .setDescription(`\u200b\nPrésentation de <@${user.id}>\n\u200b`)
     .addFields(
-      buildEmbedField('🌈 Identité', [
+      buildEmbedField(eden ? 'Identité' : '🌈 Identité', [
         SEP,
         '',
         f('Prénom / Pseudo', ident.pseudo),
         f('Âge', ident.age),
-        f('Région', ident.localisation),
+        f(eden ? 'Localisation' : 'Région', ident.localisation),
         f('Genre', ident.genre),
         f('Orientation', ident.orientation),
         f('Recherche', ident.recherche, PRESENTATION_RECHERCHE_MAX),
         f('Situation', ident.situation),
         '\u200b',
       ]),
-      buildEmbedField('👘 Apparence', [
+      buildEmbedField(eden ? 'Apparence' : '👘 Apparence', [
         SEP,
         '',
         f('Taille', app.taille),
@@ -399,7 +424,7 @@ function buildFinalPresentationEmbed(interaction, session) {
         f('Style vestimentaire', app.style, PRESENTATION_STYLE_MAX),
         '\u200b',
       ]),
-      buildEmbedField('✍🏼 À propos', [
+      buildEmbedField(eden ? 'À propos' : '✍🏼 À propos', [
         SEP,
         '',
         f('Aime', apro.aime, PRESENTATION_APROPOS_TEXT_MAX),

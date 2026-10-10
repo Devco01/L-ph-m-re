@@ -1,10 +1,15 @@
-import { config } from './config.js';
+import { config, getGuildConfig } from './config.js';
 import { formatFooterDateTime } from './validation.js';
 
 const PRIMARY_BRAND = 'Chill Zoneˢᶠᵂ | FR';
 
 export const COLOR_SANCTION = config.embedColorSanction;
 export const COLOR_OTHER = config.embedColorOther;
+
+export function embedColor(guild, kind = 'other') {
+  const cfg = getGuildConfig(guild?.id);
+  return kind === 'sanction' ? cfg.embedColorSanction : cfg.embedColorOther;
+}
 
 function getBotAvatarIconURL(client) {
   const user = client?.user;

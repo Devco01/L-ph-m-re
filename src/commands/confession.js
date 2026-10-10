@@ -20,7 +20,7 @@ import {
   incrementConfessionNumber,
 } from '../database.js';
 import { checkRateLimit } from '../rateLimit.js';
-import { COLOR_OTHER, getBotAuthor, getBotFooter } from '../embeds.js';
+import { embedColor, getBotAuthor, getBotFooter } from '../embeds.js';
 import { canCloseTicket } from '../permissions.js';
 
 function replyRateLimited(interaction, retryAfterMs) {
@@ -54,7 +54,7 @@ async function sendConfessionStaffLog({
 
   const msgUrl = `https://discord.com/channels/${guild.id}/${channelId}/${messageId}`;
   const embed = new EmbedBuilder()
-    .setColor(COLOR_OTHER)
+    .setColor(embedColor(guild))
     .setAuthor(getBotAuthor(client, guild))
     .setDescription(body)
     .setThumbnail(user.displayAvatarURL({ size: 256, extension: 'png', forceStatic: false }))
@@ -315,7 +315,7 @@ export async function handleConfession(interaction) {
   let sent;
   try {
     const publicEmbed = new EmbedBuilder()
-      .setColor(COLOR_OTHER)
+      .setColor(embedColor(interaction.guild))
       .setAuthor(getBotAuthor(interaction.client, interaction.guild))
       .setDescription(confessionBody);
     if (confessionNo > 0) publicEmbed.setTitle(`Confession n°${confessionNo}`);
@@ -442,7 +442,7 @@ export async function handleConfessionReponse(interaction) {
   let sent;
   try {
     const publicEmbed = new EmbedBuilder()
-      .setColor(COLOR_OTHER)
+      .setColor(embedColor(interaction.guild))
       .setAuthor(getBotAuthor(interaction.client, interaction.guild))
       .setDescription(replyBody);
     sent = await channel.send({

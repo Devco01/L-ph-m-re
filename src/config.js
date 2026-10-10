@@ -174,6 +174,8 @@ const GUILD_PROFILES = {
     welcomeReglementChannelId: '1557415321126707342',
     welcomeGuideChannelId: '1557415603097182370',
     welcomeEmojiIds: ['1558545937620672623', '1558165700244148284'],
+    embedColorSanction: 0x304877,
+    embedColorOther: 0x304877,
   },
 };
 

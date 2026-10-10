@@ -22,7 +22,7 @@ import {
   setTicketPanel,
   getTicketPanel,
 } from '../database.js';
-import { COLOR_OTHER, getBotAuthor, getBotFooter } from '../embeds.js';
+import { embedColor, getBotAuthor, getBotFooter } from '../embeds.js';
 import { isStaffMember, canCloseTicket } from '../permissions.js';
 import { sanitizeReason, formatBanDate } from '../validation.js';
 
@@ -140,7 +140,7 @@ async function sendTicketTranscript(client, { thread, ticket, closedById, closeR
 
   const guild = thread?.guild || client.guilds?.cache?.get(String(guildId)) || null;
   const embed = new EmbedBuilder()
-    .setColor(COLOR_OTHER)
+    .setColor(embedColor(guild))
     .setAuthor(getBotAuthor(client, guild))
     .setTitle(`${meta.emoji} Transcript — ${meta.label}`)
     .setDescription(ticket.subject ? `**Sujet :** ${String(ticket.subject).slice(0, 1000)}` : 'Aucun sujet.')
@@ -238,7 +238,7 @@ function buildTicketEmbed({ client, guild, userId, type, subject, claimedBy = nu
     ? `Ce ticket est **fermé**. Seuls les modérateurs peuvent le rouvrir.`
     : `Bonjour <@${userId}>,\nL’équipe de modération prendra en charge ta demande dès que possible.`;
   const embed = new EmbedBuilder()
-    .setColor(COLOR_OTHER)
+    .setColor(embedColor(guild))
     .setAuthor(getBotAuthor(client, guild))
     .setTitle(meta.title)
     .setDescription(desc)
@@ -259,7 +259,7 @@ function buildPanelEmbed(client, guild) {
   const modalitesId = getGuildConfig(guildId).ticketPartenariatModalitesChannelId;
   const modalites = modalitesId ? `<#${modalitesId}>` : '📓┃modalités';
   return new EmbedBuilder()
-    .setColor(COLOR_OTHER)
+    .setColor(embedColor(guild))
     .setAuthor(getBotAuthor(client, guild))
     .setTitle('🎫 Besoin d’aide ?')
     .setDescription(

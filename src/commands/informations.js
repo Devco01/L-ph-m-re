@@ -9,7 +9,7 @@ import {
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { COLOR_OTHER, embedBrandName, getBotAuthor, getBotFooter } from '../embeds.js';
+import { embedBrandName, embedColor, getBotAuthor, getBotFooter } from '../embeds.js';
 import { canCloseTicket } from '../permissions.js';
 import { getGuildConfig } from '../config.js';
 
@@ -32,7 +32,7 @@ function buildInformationsEmbed(client, guild) {
   const level5 = roleMention(guildConfig.infoLevel5RoleId);
 
   return new EmbedBuilder()
-    .setColor(COLOR_OTHER)
+    .setColor(embedColor(guild))
     .setAuthor(getBotAuthor(client, guild))
     .setThumbnail(`attachment://${THUMBNAIL_NAME}`)
     .setDescription(

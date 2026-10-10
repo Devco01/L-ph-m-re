@@ -8,7 +8,7 @@ import {
   ButtonBuilder,
   ButtonStyle,
 } from 'discord.js';
-import { COLOR_OTHER, embedBrandName, getBotAuthor, getBotFooter } from '../embeds.js';
+import { embedBrandName, embedColor, getBotAuthor, getBotFooter } from '../embeds.js';
 import { canCloseTicket } from '../permissions.js';
 import { getGuildConfig } from '../config.js';
 
@@ -78,7 +78,7 @@ function buildReglementEmbeds(client, guild) {
   ];
 
   const first = new EmbedBuilder()
-    .setColor(COLOR_OTHER)
+    .setColor(embedColor(guild))
     .setAuthor(getBotAuthor(client, guild))
     .setDescription(
       [
@@ -91,7 +91,7 @@ function buildReglementEmbeds(client, guild) {
     );
 
   const second = new EmbedBuilder()
-    .setColor(COLOR_OTHER)
+    .setColor(embedColor(guild))
     .setDescription(
       [
         joinRules(rules.slice(4)),
