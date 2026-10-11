@@ -65,6 +65,7 @@ import {
   handleConfessionLog,
 } from './commands/confession.js';
 import { handleReglement, isReglementButton, handleReglementButton } from './commands/reglement.js';
+import { handleMpRequest, isMpRequestButton, handleMpRequestButton } from './commands/mpRequest.js';
 import { handleInformations } from './commands/informations.js';
 import { handleWelcome } from './welcome.js';
 
@@ -434,6 +435,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
       return;
     }
 
+    if (interaction.isButton() && isMpRequestButton(interaction.customId)) {
+      await handleMpRequestButton(interaction);
+      return;
+    }
+
     if (!interaction.isChatInputCommand()) return;
     console.log(`[L'éphémère] Commande reçue: /${interaction.commandName} (user: ${interaction.user?.id})`);
     switch (interaction.commandName) {
@@ -473,6 +479,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
         break;
       case 'informations':
         await handleInformations(interaction);
+        break;
+      case 'demande-de-mp':
+        await handleMpRequest(interaction);
         break;
       default:
         await interaction.reply({ content: 'Commande inconnue.', flags: MessageFlags.Ephemeral });

@@ -80,3 +80,11 @@ export const clearAllConfessionLogConfigsForGuild = wrap('clearAllConfessionLogC
 export const listConfessionLogConfigsForGuild = wrap('listConfessionLogConfigsForGuild');
 export const findConfessionLogConfig = wrap('findConfessionLogConfig');
 export const incrementConfessionNumber = wrap('incrementConfessionNumber');
+
+export const createMpRequest = wrap('createMpRequest');
+export const getMpRequest = wrap('getMpRequest');
+export const findPendingMpRequest = wrap('findPendingMpRequest');
+export const countMpRequests = wrap('countMpRequests');
+export const attachMpRequestMessage = wrap('attachMpRequestMessage');
+export const resolveMpRequest = wrap('resolveMpRequest');
+export const deleteMpRequest = wrap('deleteMpRequest');

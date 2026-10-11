@@ -35,6 +35,8 @@ export async function initDatabase() {
   await db.collection('instance_lock').createIndex({ key: 1 }, { unique: true });
   await db.collection('confession_log_channels').createIndex({ guild_id: 1, source_channel_id: 1 }, { unique: true });
   await db.collection('confession_seq').createIndex({ guild_id: 1, source_channel_id: 1 }, { unique: true });
+  await db.collection('mp_requests').createIndex({ guild_id: 1, requester_id: 1 });
+  await db.collection('mp_requests').createIndex({ guild_id: 1, requester_id: 1, target_id: 1, status: 1 });
   return db;
 }
 
@@ -415,4 +417,80 @@ export async function incrementConfessionNumber(guildId, sourceChannelId) {
     source_channel_id: sourceChannelId,
   });
   return typeof doc?.seq === 'number' && doc.seq > 0 ? doc.seq : 1;
+}
+
+function mapMpRequest(doc) {
+  const plain = toPlain(doc);
+  if (!plain) return null;
+  return {
+    id: plain.id,
+    guildId: plain.guild_id,
+    channelId: plain.channel_id,
+    messageId: plain.message_id,
+    requesterId: plain.requester_id,
+    targetId: plain.target_id,
+    motif: plain.motif,
+    status: plain.status,
+    createdAt: plain.created_at,
+    resolvedAt: plain.resolved_at,
+  };
+}
+
+export async function createMpRequest({ id, guildId, channelId, requesterId, targetId, motif }) {
+  await db.collection('mp_requests').insertOne({
+    _id: String(id),
+    guild_id: String(guildId),
+    channel_id: String(channelId),
+    message_id: null,
+    requester_id: String(requesterId),
+    target_id: String(targetId),
+    motif: String(motif),
+    status: 'pending',
+    created_at: new Date().toISOString(),
+    resolved_at: null,
+  });
+  return getMpRequest(id);
+}
+
+export async function getMpRequest(id) {
+  const doc = await db.collection('mp_requests').findOne({ _id: String(id) });
+  return mapMpRequest(doc);
+}
+
+export async function findPendingMpRequest(guildId, requesterId, targetId) {
+  const doc = await db.collection('mp_requests').findOne({
+    guild_id: String(guildId),
+    requester_id: String(requesterId),
+    target_id: String(targetId),
+    status: 'pending',
+  });
+  return mapMpRequest(doc);
+}
+
+export async function countMpRequests(guildId, requesterId) {
+  return db.collection('mp_requests').countDocuments({
+    guild_id: String(guildId),
+    requester_id: String(requesterId),
+  });
+}
+
+export async function attachMpRequestMessage(id, channelId, messageId) {
+  await db.collection('mp_requests').updateOne(
+    { _id: String(id) },
+    { $set: { channel_id: String(channelId), message_id: String(messageId) } }
+  );
+}
+
+export async function resolveMpRequest(id, status) {
+  const raw = await db.collection('mp_requests').findOneAndUpdate(
+    { _id: String(id), status: 'pending' },
+    { $set: { status: String(status), resolved_at: new Date().toISOString() } },
+    { returnDocument: 'after' }
+  );
+  const doc = raw && Object.prototype.hasOwnProperty.call(raw, 'value') ? raw.value : raw;
+  return mapMpRequest(doc);
+}
+
+export async function deleteMpRequest(id) {
+  await db.collection('mp_requests').deleteOne({ _id: String(id) });
 }

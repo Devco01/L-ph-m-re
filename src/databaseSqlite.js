@@ -133,6 +133,21 @@ function initDb() {
       seq INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY (guild_id, source_channel_id)
     );
+
+    CREATE TABLE IF NOT EXISTS mp_requests (
+      id TEXT PRIMARY KEY,
+      guild_id TEXT NOT NULL,
+      channel_id TEXT NOT NULL,
+      message_id TEXT,
+      requester_id TEXT NOT NULL,
+      target_id TEXT NOT NULL,
+      motif TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      resolved_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_mp_requests_requester ON mp_requests(guild_id, requester_id);
+    CREATE INDEX IF NOT EXISTS idx_mp_requests_pending ON mp_requests(guild_id, requester_id, target_id, status);
   `);
 
   return db;
@@ -445,4 +460,73 @@ export function incrementConfessionNumber(guildId, sourceChannelId) {
   stmtConfessionInc.run(guildId, sourceChannelId);
   const r = stmtConfessionGetSeq.get(guildId, sourceChannelId);
   return r ? Number(r.seq) : 1;
+}
+
+function mapMpRequest(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    guildId: row.guild_id,
+    channelId: row.channel_id,
+    messageId: row.message_id,
+    requesterId: row.requester_id,
+    targetId: row.target_id,
+    motif: row.motif,
+    status: row.status,
+    createdAt: row.created_at,
+    resolvedAt: row.resolved_at,
+  };
+}
+
+export function createMpRequest({ id, guildId, channelId, requesterId, targetId, motif }) {
+  db.prepare(
+    `INSERT INTO mp_requests (id, guild_id, channel_id, requester_id, target_id, motif, status)
+     VALUES (?, ?, ?, ?, ?, ?, 'pending')`
+  ).run(String(id), String(guildId), String(channelId), String(requesterId), String(targetId), String(motif));
+  return getMpRequest(id);
+}
+
+export function getMpRequest(id) {
+  return mapMpRequest(db.prepare('SELECT * FROM mp_requests WHERE id = ?').get(String(id)));
+}
+
+export function findPendingMpRequest(guildId, requesterId, targetId) {
+  return mapMpRequest(
+    db
+      .prepare(
+        `SELECT * FROM mp_requests
+         WHERE guild_id = ? AND requester_id = ? AND target_id = ? AND status = 'pending'
+         LIMIT 1`
+      )
+      .get(String(guildId), String(requesterId), String(targetId))
+  );
+}
+
+export function countMpRequests(guildId, requesterId) {
+  const row = db
+    .prepare('SELECT COUNT(*) AS n FROM mp_requests WHERE guild_id = ? AND requester_id = ?')
+    .get(String(guildId), String(requesterId));
+  return Number(row?.n) || 0;
+}
+
+export function attachMpRequestMessage(id, channelId, messageId) {
+  db.prepare('UPDATE mp_requests SET channel_id = ?, message_id = ? WHERE id = ?').run(
+    String(channelId),
+    String(messageId),
+    String(id)
+  );
+}
+
+export function resolveMpRequest(id, status) {
+  const r = db
+    .prepare(
+      `UPDATE mp_requests SET status = ?, resolved_at = datetime('now') WHERE id = ? AND status = 'pending'`
+    )
+    .run(String(status), String(id));
+  if (!r.changes) return null;
+  return getMpRequest(id);
+}
+
+export function deleteMpRequest(id) {
+  db.prepare('DELETE FROM mp_requests WHERE id = ?').run(String(id));
 }

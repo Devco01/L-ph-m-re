@@ -127,6 +127,7 @@ export const config = {
   welcomeReglementChannelId: null,
   welcomeGuideChannelId: null,
   welcomeEmojiIds: [],
+  mpRequestChannelId: null,
 };
 
 /** Réglages d’un serveur additionnel : aucun ID du .env principal. */
@@ -155,6 +156,7 @@ function blankServerSettings() {
     welcomeReglementChannelId: null,
     welcomeGuideChannelId: null,
     welcomeEmojiIds: [],
+    mpRequestChannelId: null,
   };
 }
 
@@ -178,6 +180,7 @@ const GUILD_PROFILES = {
     embedColorOther: 0x304877,
     /** Archivage des fils publics après ce délai d’inactivité. Les tickets restent ouverts. */
     autoThreadArchiveMinutes: 30,
+    mpRequestChannelId: '1558471088487268522',
   },
 };
 
