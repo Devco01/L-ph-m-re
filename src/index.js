@@ -355,6 +355,10 @@ client.once(Events.ClientReady, async (c) => {
     if (autoThreadIds.length) {
       console.log(`[L'éphémère] Auto-fils (${guildId}) sur ${autoThreadIds.length} salon(s): ${autoThreadIds.join(', ')}`);
     }
+    const guildSelfieIds = [...(guildConfig.selfieChannelIds || [])];
+    if (guildSelfieIds.length && String(guildId) !== String(config.guildId)) {
+      console.log(`[L'éphémère] Réactions auto (${guildId}) sur ${guildSelfieIds.length} salon(s): ${guildSelfieIds.join(', ')}`);
+    }
     if (guildConfig.autoThreadArchiveMinutes >= 5) {
       console.log(`[L'éphémère] Archivage auto des fils publics sur ${guildId} : ${guildConfig.autoThreadArchiveMinutes} min (sans verrouillage).`);
     }
