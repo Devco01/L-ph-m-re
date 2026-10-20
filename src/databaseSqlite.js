@@ -148,6 +148,23 @@ function initDb() {
     );
     CREATE INDEX IF NOT EXISTS idx_mp_requests_requester ON mp_requests(guild_id, requester_id);
     CREATE INDEX IF NOT EXISTS idx_mp_requests_pending ON mp_requests(guild_id, requester_id, target_id, status);
+
+    CREATE TABLE IF NOT EXISTS avis_seq (
+      guild_id TEXT PRIMARY KEY,
+      seq INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE TABLE IF NOT EXISTS avis (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      guild_id TEXT NOT NULL,
+      number INTEGER NOT NULL,
+      author_id TEXT NOT NULL,
+      channel_id TEXT NOT NULL,
+      message_id TEXT,
+      note INTEGER NOT NULL,
+      text TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(guild_id, number)
+    );
   `);
 
   return db;
@@ -529,4 +546,28 @@ export function resolveMpRequest(id, status) {
 
 export function deleteMpRequest(id) {
   db.prepare('DELETE FROM mp_requests WHERE id = ?').run(String(id));
+}
+
+export function incrementAvisNumber(guildId) {
+  db.prepare(
+    `INSERT INTO avis_seq (guild_id, seq) VALUES (?, 1)
+     ON CONFLICT(guild_id) DO UPDATE SET seq = seq + 1`
+  ).run(String(guildId));
+  const row = db.prepare('SELECT seq FROM avis_seq WHERE guild_id = ?').get(String(guildId));
+  return row ? Number(row.seq) : 1;
+}
+
+export function saveAvis({ guildId, number, authorId, channelId, messageId, note, text }) {
+  db.prepare(
+    `INSERT INTO avis (guild_id, number, author_id, channel_id, message_id, note, text)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    String(guildId),
+    Number(number),
+    String(authorId),
+    String(channelId),
+    messageId ? String(messageId) : null,
+    Number(note),
+    String(text)
+  );
 }

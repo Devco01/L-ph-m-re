@@ -66,6 +66,7 @@ import {
 } from './commands/confession.js';
 import { handleReglement, isReglementButton, handleReglementButton } from './commands/reglement.js';
 import { handleMpRequest, isMpRequestButton, handleMpRequestButton } from './commands/mpRequest.js';
+import { handleAvis } from './commands/avis.js';
 import { handleInformations } from './commands/informations.js';
 import { handleWelcome } from './welcome.js';
 
@@ -486,6 +487,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
         break;
       case 'demande-de-mp':
         await handleMpRequest(interaction);
+        break;
+      case 'avis':
+        await handleAvis(interaction);
         break;
       default:
         await interaction.reply({ content: 'Commande inconnue.', flags: MessageFlags.Ephemeral });

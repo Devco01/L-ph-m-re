@@ -37,6 +37,8 @@ export async function initDatabase() {
   await db.collection('confession_seq').createIndex({ guild_id: 1, source_channel_id: 1 }, { unique: true });
   await db.collection('mp_requests').createIndex({ guild_id: 1, requester_id: 1 });
   await db.collection('mp_requests').createIndex({ guild_id: 1, requester_id: 1, target_id: 1, status: 1 });
+  await db.collection('avis_seq').createIndex({ guild_id: 1 }, { unique: true });
+  await db.collection('avis').createIndex({ guild_id: 1, number: 1 }, { unique: true });
   return db;
 }
 
@@ -493,4 +495,27 @@ export async function resolveMpRequest(id, status) {
 
 export async function deleteMpRequest(id) {
   await db.collection('mp_requests').deleteOne({ _id: String(id) });
+}
+
+export async function incrementAvisNumber(guildId) {
+  await db.collection('avis_seq').updateOne(
+    { guild_id: String(guildId) },
+    { $inc: { seq: 1 } },
+    { upsert: true }
+  );
+  const doc = await db.collection('avis_seq').findOne({ guild_id: String(guildId) });
+  return typeof doc?.seq === 'number' && doc.seq > 0 ? doc.seq : 1;
+}
+
+export async function saveAvis({ guildId, number, authorId, channelId, messageId, note, text }) {
+  await db.collection('avis').insertOne({
+    guild_id: String(guildId),
+    number: Number(number),
+    author_id: String(authorId),
+    channel_id: String(channelId),
+    message_id: messageId ? String(messageId) : null,
+    note: Number(note),
+    text: String(text),
+    created_at: new Date().toISOString(),
+  });
 }

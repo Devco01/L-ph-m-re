@@ -5,6 +5,7 @@ import { confessionCommands } from './confession.js';
 import { reglementCommands } from './reglement.js';
 import { informationsCommands } from './informations.js';
 import { mpRequestCommands } from './mpRequest.js';
+import { avisCommands } from './avis.js';
 
 export const commands = [
   ...moderationCommands,
@@ -14,4 +15,5 @@ export const commands = [
   ...reglementCommands,
   ...informationsCommands,
   ...mpRequestCommands,
+  ...avisCommands,
 ];

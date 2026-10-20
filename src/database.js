@@ -88,3 +88,6 @@ export const countMpRequests = wrap('countMpRequests');
 export const attachMpRequestMessage = wrap('attachMpRequestMessage');
 export const resolveMpRequest = wrap('resolveMpRequest');
 export const deleteMpRequest = wrap('deleteMpRequest');
+
+export const incrementAvisNumber = wrap('incrementAvisNumber');
+export const saveAvis = wrap('saveAvis');
