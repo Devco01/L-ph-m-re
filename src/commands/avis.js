@@ -47,13 +47,13 @@ function buildAvisEmbed(client, guild, { text, note, number, heart, icons }) {
     .setColor(color)
     .setDescription(
       [
-        `🔒${GAP}•${GAP}**Anonyme**`,
+        '🔒•**Anonyme**',
         '',
-        `${heart}${GAP}•${GAP}**Avis de la communauté**`,
+        `${heart}•**Avis de la communauté**`,
         '',
         quoteAvis(text),
         '',
-        `${heart}${GAP}•${GAP}**Note**${GAP}${GAP}${icons}${GAP}${GAP}**${note} / 5**`,
+        `${heart}•**Note**${GAP}${icons}${GAP}**${note} / 5**`,
       ].join('\n')
     )
     .setFooter(getBotFooter(client, { extra: `Avis #${number}`, date: new Date(), guild }));
