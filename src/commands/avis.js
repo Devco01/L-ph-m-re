@@ -10,8 +10,10 @@ import { incrementAvisNumber, saveAvis } from '../database.js';
 import { embedColor, getBotFooter } from '../embeds.js';
 import { checkRateLimit } from '../rateLimit.js';
 
-const HEART_FALLBACK = '★';
+const HEART_FALLBACK = '💙';
+const RATING_FALLBACK = '★';
 const EMPTY_MARK = '☆';
+const GAP = '\u2003';
 
 function quoteAvis(text) {
   return escapeMarkdown(text)
@@ -22,29 +24,36 @@ function quoteAvis(text) {
     .join('\n');
 }
 
-async function ratingMark(guild, note) {
-  const emojiId = getGuildConfig(guild?.id).avisRatingEmojiId;
-  let emoji = emojiId ? guild?.emojis?.cache?.get(emojiId) : null;
-  if (!emoji && emojiId && guild?.emojis?.fetch) {
+async function guildEmoji(guild, emojiId, fallback) {
+  if (!emojiId) return fallback;
+  let emoji = guild?.emojis?.cache?.get(emojiId) || null;
+  if (!emoji && guild?.emojis?.fetch) {
     emoji = await guild.emojis.fetch(emojiId).catch(() => null);
   }
-  const filled = emoji ? emoji.toString() : HEART_FALLBACK;
-  const icons = Array.from({ length: 5 }, (_, i) => (i < note ? filled : EMPTY_MARK)).join(' ');
-  return { filled, icons };
+  return emoji ? emoji.toString() : fallback;
 }
 
-function buildAvisEmbed(client, guild, { text, note, number, filled, icons }) {
+async function ratingMark(guild, note) {
+  const guildConfig = getGuildConfig(guild?.id);
+  const heart = await guildEmoji(guild, guildConfig.avisHeartEmojiId, HEART_FALLBACK);
+  const filled = await guildEmoji(guild, guildConfig.avisRatingEmojiId, RATING_FALLBACK);
+  const icons = Array.from({ length: 5 }, (_, i) => (i < note ? filled : EMPTY_MARK)).join(`${GAP}`);
+  return { heart, icons };
+}
+
+function buildAvisEmbed(client, guild, { text, note, number, heart, icons }) {
+  const color = getGuildConfig(guild?.id).avisColor || embedColor(guild);
   return new EmbedBuilder()
-    .setColor(embedColor(guild))
+    .setColor(color)
     .setDescription(
       [
-        '🔒  •  **Anonyme**',
+        `🔒${GAP}•${GAP}**Anonyme**`,
         '',
-        `${filled}  •  **Avis de la communauté**`,
+        `${heart}${GAP}•${GAP}**Avis de la communauté**`,
         '',
         quoteAvis(text),
         '',
-        `${filled}  •  **Note**    ${icons}    **${note} / 5**`,
+        `${heart}${GAP}•${GAP}**Note sur 5**${GAP}${GAP}${icons}${GAP}${GAP}**${note} / 5**`,
       ].join('\n')
     )
     .setFooter(getBotFooter(client, { extra: `Avis #${number}`, date: new Date(), guild }));
@@ -59,7 +68,12 @@ export const avisCommands = [
       o.setName('texte').setDescription('Ton avis sur le serveur').setRequired(true).setMaxLength(1500)
     )
     .addIntegerOption((o) =>
-      o.setName('note').setDescription('Note de 1 à 5').setRequired(true).setMinValue(1).setMaxValue(5)
+      o
+        .setName('note-sur-5')
+        .setDescription('Note sur 5')
+        .setRequired(true)
+        .setMinValue(1)
+        .setMaxValue(5)
     )
     .toJSON(),
 ];
@@ -94,7 +108,7 @@ export async function handleAvis(interaction) {
   }
 
   const text = String(interaction.options.getString('texte', true) || '').trim();
-  const note = interaction.options.getInteger('note', true);
+  const note = interaction.options.getInteger('note-sur-5', true);
   if (!text) {
     return interaction.reply({ content: 'Indique ton avis.', flags: MessageFlags.Ephemeral });
   }

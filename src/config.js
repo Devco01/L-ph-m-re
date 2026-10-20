@@ -131,6 +131,8 @@ export const config = {
   avisEnabled: false,
   avisChannelId: null,
   avisRatingEmojiId: null,
+  avisHeartEmojiId: null,
+  avisColor: null,
 };
 
 /** Réglages d’un serveur additionnel : aucun ID du .env principal. */
@@ -163,6 +165,8 @@ function blankServerSettings() {
     avisEnabled: false,
     avisChannelId: null,
     avisRatingEmojiId: null,
+    avisHeartEmojiId: null,
+    avisColor: null,
   };
 }
 
@@ -205,7 +209,9 @@ const GUILD_PROFILES = {
     mpRequestChannelId: '1558471088487268522',
     avisEnabled: true,
     avisChannelId: '1562114037809029160',
-    avisRatingEmojiId: '1558776943237791744',
+    avisRatingEmojiId: '1558165587895779510',
+    avisHeartEmojiId: '1558776943237791744',
+    avisColor: 0x575fff,
   },
 };
 
