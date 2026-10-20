@@ -53,7 +53,7 @@ function buildAvisEmbed(client, guild, { text, note, number, heart, icons }) {
         '',
         quoteAvis(text),
         '',
-        `${heart}${GAP}•${GAP}**Note sur 5**${GAP}${GAP}${icons}${GAP}${GAP}**${note} / 5**`,
+        `${heart}${GAP}•${GAP}**Note**${GAP}${GAP}${icons}${GAP}${GAP}**${note} / 5**`,
       ].join('\n')
     )
     .setFooter(getBotFooter(client, { extra: `Avis #${number}`, date: new Date(), guild }));
