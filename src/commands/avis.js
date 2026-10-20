@@ -37,7 +37,7 @@ async function ratingMark(guild, note) {
   const guildConfig = getGuildConfig(guild?.id);
   const heart = await guildEmoji(guild, guildConfig.avisHeartEmojiId, HEART_FALLBACK);
   const filled = await guildEmoji(guild, guildConfig.avisRatingEmojiId, RATING_FALLBACK);
-  const icons = Array.from({ length: 5 }, (_, i) => (i < note ? filled : EMPTY_MARK)).join(`${GAP}`);
+  const icons = Array.from({ length: 5 }, (_, i) => (i < note ? filled : EMPTY_MARK)).join('');
   return { heart, icons };
 }
 
